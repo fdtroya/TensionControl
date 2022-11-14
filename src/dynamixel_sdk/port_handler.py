@@ -58,7 +58,7 @@ class PortHandler(object):
 
     def setBaudRate(self, baudrate):
         baud = self.getCFlagBaud(baudrate)
-
+        print(baud)
         if baud <= 0:
             # self.setupPort(38400)
             # self.baudrate = baudrate

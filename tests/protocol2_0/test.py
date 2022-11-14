@@ -3,23 +3,14 @@ import os
 from threading import Thread
 import keyboard
 
+def twos_comp(val, bits):
+    """compute the 2's complement of int value val"""
+    if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
+        val = val - (1 << bits)        # compute negative value
+    return val 
 
+num=twos_comp(0xFFFFFEBB,32)
 
-num=0xFFFFFEBB
-absVal= num&0x7FFFFFFF
-sign=(num>>31)
-if(sign):
-    inv=~absVal
-    preval=inv*-1
-    val1= preval-1
-else:
-    val2=absVal
-
-
-
-val=num.to_bytes(4,byteorder="big")
-final=int.from_bytes(val,byteorder="big",signed=True)
-num2=num
 
 
 print(num)

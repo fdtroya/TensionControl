@@ -1,8 +1,4 @@
 from Custom.motor import *
 from time import *
-
-testTime=10
-
-
-
+import numpy as np
 
