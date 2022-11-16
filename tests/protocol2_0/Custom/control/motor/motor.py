@@ -18,32 +18,32 @@ class motor(object):
     #utilities
     pulleyR=11#in mm
     displacementPerRotation=14*5 #in mm
-    bulkConversion=np.array([0.112994,2.69,0.0239808239224,0.0879121])
+    bulkConversion=np.array([0.1129943502824,2.69,0.023981,0.087912087912])
     def toSigned32(n):
         n = n & 0xffffffff
         return (n ^ 0x80000000) - 0x80000000
 
     def mAmpsToNumber(mAmps): #0-1743.12
-        return round(mAmps/2.69)
+        return round(mAmps/motor.bulkConversion[1])
     def numberTomAmps(number):
-        return number*2.69
+        return number*motor.bulkConversion[1]
     def angleToLinear(angle):
         return angle*(motor.displacementPerRotation/360)
     def linearToAngle(linear):
         return 360*(linear/motor.displacementPerRotation)
     def numberToAngle(number):
-        return number*0.0879121
+        return number*motor.bulkConversion[3]
     def angleToNumber(angle):
-        return round(angle/0.0879121)
+        return round(angle/motor.bulkConversion[3])
     
     def numberToDutyCicle(number):
-        return number*(100/885)
+        return number*motor.bulkConversion[0]
     def dutyCycleToNumber(dutyCycle):
-        return round(dutyCycle*(885/100))
+        return round(dutyCycle/motor.bulkConversion[0])
     def numberToradS(number):
-        return number*0.0239808239224
+        return number*motor.bulkConversion[2]
     def radSToNumber(radS):
-        return round(radS/0.0239808239224)
+        return round(radS/motor.bulkConversion[2])
     
     def twos_comp(val, bytes):
         bits=8*bytes
