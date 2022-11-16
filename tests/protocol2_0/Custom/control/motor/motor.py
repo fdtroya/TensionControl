@@ -8,17 +8,17 @@ import time
 
 
 from dynamixel_sdk import *                   
-from config import *
-from addressTable import *
-from commandTable import *
-
+from motor.config import *
+from motor.addressTable import *
+from motor.commandTable import *
+import numpy as np
 
 class motor(object):
 
     #utilities
     pulleyR=11#in mm
     displacementPerRotation=14*5 #in mm
-
+    bulkConversion=np.array([0.112994,2.69,0.0239808239224,0.0879121])
     def toSigned32(n):
         n = n & 0xffffffff
         return (n ^ 0x80000000) - 0x80000000
@@ -44,9 +44,11 @@ class motor(object):
         return number*0.0239808239224
     def radSToNumber(radS):
         return round(radS/0.0239808239224)
+    
     def twos_comp(val, bytes):
-        if (val & (1 << (bytes*8 - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
-            val = val - (1 << bytes*8)        # compute negative value
+        bits=8*bytes
+        if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
+            val = val - (1 << bits)        # compute negative value
         return val 
 
 
@@ -57,6 +59,7 @@ class motor(object):
         self.DXL_ID=ID
         self.comLock=Lock()
         self.groupBulkRead = GroupBulkRead(self.portHandler, self.packetHandler)
+        
       
         
     def connect(self):
@@ -134,14 +137,20 @@ class motor(object):
         l=4
         size=end-start+l
         data,result,error=self.packetHandler.readTxRx(self.portHandler,self.DXL_ID,start,size)
-        PWMB=DXL_MAKEDWORD(data[0],data[1])
-        currentB=DXL_MAKEWORD(data[2],data[3])
-        velocityB=DXL_MAKEWORD(DXL_MAKEWORD(data[4],data[5]),DXL_MAKEWORD(data[6],data[7]))
-        positionB=DXL_MAKEWORD(DXL_MAKEWORD(data[8],data[9]),DXL_MAKEWORD(data[10],data[11]))
-        PWM=motor.twos_comp(PWMB,2)
-        current=motor.twos_comp(currentB,2)
-        velocity=motor.twos_comp(velocityB,4)
-        position=motor.twos_comp(positionB,4)
+        if (result == COMM_SUCCESS):
+            PWMB=DXL_MAKEWORD(data[0], data[1])
+            currentB=DXL_MAKEWORD(data[2], data[3])
+            velocityB=DXL_MAKEDWORD(DXL_MAKEWORD(data[4], data[5]),
+                                  DXL_MAKEWORD(data[6], data[7]))
+            positionB=DXL_MAKEDWORD(DXL_MAKEWORD(data[8], data[9]),
+                                  DXL_MAKEWORD(data[10], data[11]))
+
+            PWM=motor.twos_comp(PWMB,2)
+            current=motor.twos_comp(currentB,2)
+            velocity=motor.twos_comp(velocityB,4)
+            position=motor.twos_comp(positionB,4)
+        else:
+            PWM,current,velocity,position=[0,0,0,0]
         return (PWM,current,velocity,position)
         
     def readAddress(self,address,byteSize):
