@@ -12,6 +12,10 @@ def signal(t):# t in seconds [0 10]
 #position control
 
 
+
+
+
+
 dyn1=motor(1,'COM3',4000000)
 dyn1.connect()
 dyn1.setPWMControlMode()
