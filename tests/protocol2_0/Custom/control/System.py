@@ -9,4 +9,7 @@ R=8.1
 Dmotor=13.4
 L=0.00028
 J=5.45*10**-8
+Ke=52.569317
+Kt=2.68
+
 "https://www.maxongroup.com/maxon/view/product/motor/dcmotor/remax/remax29/226805"
