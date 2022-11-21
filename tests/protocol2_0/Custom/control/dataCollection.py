@@ -40,8 +40,6 @@ def runTest():
             uL.append(u)
             presentTime+=timeStep
             loopEndtime=time.perf_counter()
-
-
     dyn1.setGoalPWM(0)
     dyn1.disableTorque()
     data=np.array(allData)
