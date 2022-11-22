@@ -18,7 +18,7 @@ class motor(object):
     #utilities
     pulleyR=11#in mm
     displacementPerRotation=14*5 #in mm
-    bulkConversion=np.array([0.1129943502824,2.69,0.023981,0.087912087912])
+    bulkConversion=np.array([0.01356,2.69,0.023981,0.087912087912])
     def toSigned32(n):
         n = n & 0xffffffff
         return (n ^ 0x80000000) - 0x80000000
@@ -216,8 +216,8 @@ class motor(object):
     def setGoalLinearPosition(self,positionInmm):
         self.setGoalPositionAngle(motor.linearToAngle(positionInmm))
 
-    def setGoalPWM(self,pwmPercentage):
-        value=motor.dutyCycleToNumber(pwmPercentage)
+    def setGoalPWM(self,voltage):
+        value=motor.dutyCycleToNumber(voltage)
         self.writeAddress(ADDR_PRO_GOAL_PWM,value,LEN_PRO_GOAL_PWM)
 
     def setHomeOffset(self,numberPosition):

@@ -8,7 +8,7 @@ import numpy as np
 from operator import attrgetter
 
 
-parameters={"mutation":0.1,"mutationRange":[0.8,1.2],"crossover":0.9,"geneTransfer":0.5,"populationSize":100,"stopErr":0.9,"searchRanges":[[0,5],[0,6],[0,7],[0,4],[0,3],[0,2],[0,1],[0,3]],"q":0.1}
+parameters={"mutation":0.1,"mutationRange":[0.5,1.5],"crossover":0.9,"geneTransfer":0.5,"populationSize":200,"stopErr":0.9,"searchRanges":[[0,100], [0,1000], [0,30000], [0,100], [0,5000], [0,10000], [0,1000], [0,timeStep]],"q":0.1}
 
 class Model:   
 
@@ -102,6 +102,10 @@ class GA:
                 child[gene]=child[gene]*rd.uniform(self.parameters["mutationRange"][0],self.parameters["mutationRange"][1])
         return Model(child)
     
+    def crossover2(self,indv1,indv2):
+        pre=(np.array(indv1.constants)+np.array(indv2.constants))/2
+        return Model(list(pre))
+
     def mutate(self,individual):
         result=individual.constants.copy()
         for i in range(len(individual.constants)):
@@ -133,6 +137,7 @@ class GA:
 
 if __name__ == '__main__':  
     outputData=np.load("dataConv.npy")
+    outputData[:,2]=outputData[:,2]*353.5
     inputData=np.load("u.npy")
     start=time.time()  
     cont=2
@@ -152,9 +157,10 @@ if __name__ == '__main__':
         iterationEnd=time.time()
         print("Best Fitness: "+str(alg.bestScore))
         print("Iteration Time "+str(iterationEnd-iterationStart))
+        print(alg.bestIndividual.constants)
         cont+=1
     end=time.time()
-  
+    print(alg.bestIndividual.constants)
     print("end")
     
 

@@ -1,6 +1,7 @@
 from dataCollection import signal
 import math 
 import numpy as np
+import matplotlib.pyplot as plt
 """
 start=time.time()
 for i in range(10000):
@@ -18,13 +19,14 @@ def runSim(listK,timeStep,endTime):
     iDotL=[]
     uL=[]
     K1,K2,K3,K4,K5,K6,K7,K8=listK
-    index=0
-    tolerance=0.00001
-    while (currentTime<(endTime-tolerance)):
+    times=[]
+    tolerance=0.0001
+    while (currentTime<=(endTime+tolerance)):
+        times.append(currentTime)
         u=signal(currentTime)
         uL.append(u)
-        omega=omegaL[index]
-        i=iL[index]
+        omega=omegaL[-1]
+        i=iL[-1]
         sgn=sign(omega)
 
         omegaDot=-K1*omega+K2*i-K6*sgn-K7*math.e**(-K8*abs(omega))*sgn
@@ -35,8 +37,10 @@ def runSim(listK,timeStep,endTime):
         omegaL.append(omega+timeStep*omegaDot)
         iL.append(i+timeStep*iDot)
         currentTime+=timeStep
-        index+=1
-    omegaL=np.array(omegaL[1:])
+        
+    omegaL=np.array(omegaL[1:-1])
+    #plt.plot(times[:-1],omegaL)
+    #plt.show()
     return uL,iL[1:],omegaL,omegaDot
 
 

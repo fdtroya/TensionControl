@@ -5,12 +5,13 @@ import math
 
 from motor.motor import *
 
-timeStep=0.005
+timeStep=0.002 
 endTime=10
+
 
 def signal(t):# t in seconds [0 10]
     Kda=10
-    return(700/Kda)*math.sin((math.pi/10)*t)
+    return(70/Kda)*math.sin((math.pi/10)*t)
 
 #position control
 
@@ -45,10 +46,13 @@ def runTest():
     data=np.array(allData)
     timeArr=np.array(timeLs)
     uL=np.array(uL)
+    gears=np.array([1,1,353.5,353.5])
     dataConv=data*motor.bulkConversion
-
+    
     np.save("dataConv.npy",dataConv)
     np.save("timeStep.npy",timeArr)
     np.save("u.npy",uL)
 
 
+if __name__ == '__main__':  
+    runTest()
