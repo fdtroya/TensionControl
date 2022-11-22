@@ -8,7 +8,8 @@ import numpy as np
 from operator import attrgetter
 
 
-parameters={"mutation":0.1,"mutationRange":[0.5,1.5],"crossover":0.9,"geneTransfer":0.5,"populationSize":200,"stopErr":0.9,"searchRanges":[[0,100], [0,1000], [0,30000], [0,100], [0,5000], [0,10000], [0,1000], [0,timeStep]],"q":0.1}
+Ra,La,J,B,Ke,Kt,Tc,Ts,alpha=[8.1,0.28*10**-3,5.41*10**-8,3.121*10**-7,0.0102469,10.2*10**-3,0.048,0.0536,0.002]
+parameters={"mutation":0.1,"mutationRange":[0.5,1.5],"crossover":0.9,"geneTransfer":0.5,"populationSize":50,"stopErr":0.9999,"q":0.1}
 
 class Model:   
 
@@ -42,9 +43,18 @@ class GA:
         
 
     def randomIndividual(self,i):
-        ind=[]
-        for rang in self.parameters["searchRanges"]: 
-            ind.append(rd.uniform(rang[0],rang[1]))
+        l=0.9
+        u=1.1
+        Rar=rd.uniform(l*Ra,u*Ra)
+        Lar=rd.uniform(l*La,u*La)
+        Jr=rd.uniform(l*J,u*J)
+        Br=rd.uniform(l*B,u*B)
+        Ker=rd.uniform(l*Ke,u*Ke)
+        Ktr=rd.uniform(l*Kt,u*Kt)
+        Tcr=rd.uniform(0,Tc)
+        Tsr=rd.uniform(0,Ts)
+        alphar=rd.uniform(0,alpha)
+        ind=[Br/Jr,Ktr/Jr,Rar/Lar,Ker/Lar,1/Lar,Tcr/Jr,(Tsr-Tcr)/Jr,alphar]
         ind=Model(ind)
         return ind
         
@@ -72,7 +82,8 @@ class GA:
     def fitnessCalcSeq(self):
         for individual in self.currentPop:
             squareErrorArray=(individual.omegaL-experimentalOmega)**2
-            squareErrorTot=np.sum(squareErrorArray)
+            squareErrorTot= np.sum(squareErrorArray)
+            squareErrorMean=np.mean(squareErrorArray)
             individual.fitness=1/(squareErrorTot+1)
         self.currentPop=sorted(self.currentPop,key=attrgetter("fitness"),reverse=True)
 
@@ -85,12 +96,12 @@ class GA:
     def probabilityCalculation(self):
         q=self.parameters["q"]
         m=self.parameters["populationSize"]
-        qPrime=q/(1-(1-q)**m)
+        qPrime=q/(1-((1-q)**m))
         self.currentPopulationweights=[]
         for individual_index in range(len(self.currentPop)):
             individual=self.currentPop[individual_index]
-            individual.rank=individual_index
-            individual.prob=qPrime*(1-q)**(individual.rank-1)
+            individual.rank=individual_index+1
+            individual.prob=qPrime*((1-q)**(individual.rank-1))
             self.currentPopulationweights.append(individual.prob)
         
     def crossover(self,indv1,indv2):
@@ -137,7 +148,7 @@ class GA:
 
 if __name__ == '__main__':  
     outputData=np.load("dataConv.npy")
-    outputData[:,2]=outputData[:,2]*353.5
+    #outputData[:,2]=outputData[:,2]*353.5
     inputData=np.load("u.npy")
     start=time.time()  
     cont=2

@@ -53,12 +53,12 @@ def gradient_descent(start, gradient, learn_rate, max_iter, tol=0.01):
 
   
 
-    
+Ra,La,J,B,Ke,Kt,Tc,Ts,alpha=[8.1,0.28*10**-3,5.41*10**-8,3.121*10**-7,0.0102469,10.2*10**-3,0.048,0.0536,0.002]
+c=[B/J,Kt/J,Ra/La,Ke/La,1/La,Tc/J,(Ts-Tc)/J,alpha]
 outputData=np.load("dataConv.npy")
-Model.experimentalOmega=outputData[:,2]*353.5
-m=Model([53.051396219594615, 39.22563892696018, 45.91351853161375, 19.337626439031325, 22.414007075978255, 0.8403205655849757, 0.9069716705745678, 0.00011904809104546013])
+Model.experimentalOmega=outputData[:,2]
 
-gradient_descent(np.array(m.constants),calcGradient,0.05,1000)
+gradient_descent(np.array(c),calcGradient,0.001,1000)
 
 
     
