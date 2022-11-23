@@ -5,13 +5,12 @@ import math
 
 from motor.motor import *
 
-timeStep=0.002 
-endTime=10
+timeStep=0.001 
+endTime=6
 
 
 def signal(t):# t in seconds [0 10]
-    Kda=10
-    return(70/Kda)*math.sin((math.pi/10)*t)
+    return 2*math.sin((math.pi/endTime)*t)
 
 #position control
 

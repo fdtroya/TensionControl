@@ -2,23 +2,9 @@ from dataCollection import signal
 from dataCollection import timeStep
 import numpy as np
 import matplotlib.pyplot as plt
+import math
+from dataCollection import endTime
 
-
-def sensorSim(omega):
-    return (omega//0.02391)*0.02391
-
-
-
-"""
-B=0.2
-J=0.02
-Kt=0.015
-Ke=0.015
-La=0.5
-Ra=2
-"""
-
-Dmotor=13.4*10**-3
 
 Ra=8.1
 La=0.28*10**-3
@@ -26,12 +12,68 @@ La=0.28*10**-3
 J=5.41*10**-8
 Ke=0.0102469
 Kt=10.2*10**-3 
-
 B=3.121*10**-7
+
+sigma0=100
+sigma1=1.5
+sigma2=0.004
+Tc=0.023*Ke
+Ts=0.058*Ke
+Vs=6.106*10**3
 dt=0.00001
 
-c=[B/J,Kt/J,Ra/La,Ke/La,1/La]#,Tcr/Jr,(Tsr-Tcr)/Jr,alphar]
+c=[B,Kt/J,Ra/La,Ke/La,1/La]#,Tcr/Jr,(Tsr-Tcr)/Jr,alphar]
 K1,K2,K3,K4,K5=c
+
+
+
+def sign(n):
+    return int(n>0) - int(n<0)
+
+class luGreModel(object):
+    def __init__(self,sigma0,sigma1,sigma2,Ts,Tc,Vs,dt):
+        self.sigma0=sigma0
+        self.sigma1=sigma1
+        self.sigma2=sigma2
+        self.Ts=Ts
+        self.Tc=Tc
+        self.Vs=Vs
+        self.z=0
+        self.zDot=0
+        self.dt=dt
+
+    def calcStribertEffect(self,omega):
+        r=self.Tc+(self.Ts-self.Tc)*math.e**-((omega/self.Vs)**2)
+        return r/self.sigma0
+
+    def calcStribertEffect2(self,omega):
+        if(omega==0):
+            hP=self.calcStricbertEffect2(self,0.001)
+            hM=self.calcStricbertEffect2(self,-0.001)
+            return (hP+hM)/2
+        else:
+            return self.calcStrickbertEffect(omega)
+
+
+    def calcZDot(self,omega,z):
+        g=self.calcStribertEffect(omega)
+        zDot=omega-(abs(omega)/g)*z
+        return zDot
+
+
+
+    def caclTorque(self,omega):
+        self.zDot=self.calcZDot(omega,self.z)
+        Tf=self.sigma0*self.z+self.sigma1*self.zDot+self.sigma2*omega
+        self.z=self.z+(self.zDot*self.dt)
+        
+        return Tf
+
+
+def sensorSim(omega):
+    return (omega//0.02391)*0.02391
+Dmotor=13.4*10**-3
+
 def sat(sig,threshold):
     if sig>threshold:
         return threshold
@@ -39,8 +81,7 @@ def sat(sig,threshold):
         return -threshold
     return sig
 
-
-endTime=10
+friction=luGreModel(sigma0,sigma1,sigma2,Ts,Tc,Vs,dt)
 times=[]
 tolerance=0.0001
 currentTime=0
@@ -66,11 +107,8 @@ while (currentTime<=(endTime+tolerance)):
         dataOmega.append(sensorSim(omega/353.5))
         times.append(currentTime)
 
-
-
-
-
-    omegaDot=-K1*omega+K2*i
+    #Tf=friction.caclTorque(omega)
+    omegaDot=-K1*omega+K2*i#-Tf/J
     iDot=-K4*omega-K3*i+u*K5
 
     omegaDotL.append(omegaDot)
@@ -82,13 +120,18 @@ while (currentTime<=(endTime+tolerance)):
     currentTime+=dt
 
 a=np.load("dataConv.npy")
+b=np.load("dataBConv.npy")
 #a[:,2]=a[:,2]*353.5
 time=np.load("timeStep.npy")
 omegaL=np.array(dataOmega)
 
 plt.plot(times,omegaL)
 experimentalOmega=a[:,2]
-plt.plot(time,experimentalOmega)
+experimentalBOmega=b[:,2]
+
+
+
+plt.plot(time,experimentalBOmega)
 
 #plt.plot(times[:-1],uL[:-1])
 plt.show()
