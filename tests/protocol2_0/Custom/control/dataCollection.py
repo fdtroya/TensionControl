@@ -5,7 +5,7 @@ import math
 
 from motor.motor import *
 
-timeStep=0.001 
+timeStep=0.002 
 endTime=6
 
 
@@ -39,6 +39,7 @@ def runTest():
             timeLs.append(presentTime)
             uL.append(u)
             presentTime+=timeStep
+            print(presentTime)
             loopEndtime=time.perf_counter()
     dyn1.setGoalPWM(0)
     dyn1.disableTorque()
