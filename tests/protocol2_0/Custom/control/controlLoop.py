@@ -34,13 +34,13 @@ class loop(object):
         self.log=[]
 
     def Tm(self,omega,Tfr,Ftd):
-        return self.constants[0]*omega+Ftd*self.constants[5]/353.5+Tfr/353.5
+        return self.constants[0]*omega*353.5+((Ftd*self.constants[5])/353.5)+(Tfr)
     
     def Id(self,Tm):
         return Tm/self.constants[1]
     
     def Tfr(self,omega,Ft,i):
-        return (i*self.constants[1]-self.constants[0]*omega-Ft/353.5)*353.5
+        return i*self.constants[1]-(self.constants[0]*omega*353.5)-((Ft*self.constants[5])/353.5)
     def startLoop(self):
 
         loadCellStartEvent=threading.Event()
@@ -61,27 +61,36 @@ class loop(object):
         loopEndtime=time.perf_counter()
         stepTime=1/self.freq
         while True:
+
             Tm=self.Tm(omega,Tfr,Ftd)
+
             Id=self.Id(Tm)
-            if((theta*(14/360)*5>=60)and Id>=0):
+            if((theta*(14/360)*5>=60)and Id>0):
                 Id=0
-            elif((theta*(14/360)*5<=0)and Id<=0):
+                
+            elif((theta*(14/360)*5<=0)and Id<0):
                 Id=0
+                
             
             self.motorController.setGoalCurrent(Id*1000)
             data=self.motorController.readBulkSensors()*motor.bulkConversion
-            data=[1,2,3,4]
+            #data=[1,2,3,4]
             self.log.append(data)
             omega=data[2]
             theta=data[3]
-            i=data[1]
+            i=data[1]/1000
 
             loadCellEndEvent.wait()
             loadCellEndEvent.clear()
+
             Ft=force[0][0]*9.81
+
             print(Ft)
+
             loadCellStartEvent.set()
+
             Tfr=self.Tfr(omega,Ft,i)
+
              #   loopEndtime=time.perf_counter()
         
 
@@ -101,7 +110,7 @@ Kt=10.2*10**-3
 B=3.121*10**-7
 constants=[B,Kt,Ke,La,Ra,r1]
 gains=[]
-sens=sensor('COM4',38400)
+sens=sensor('COM5',38400)
 motors=motor(1,"COM3",4000000)
 freq=60
 

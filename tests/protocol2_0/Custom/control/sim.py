@@ -131,7 +131,7 @@ experimentalBOmega=b[:,2]
 
 
 
-plt.plot(time,experimentalBOmega)
+plt.plot(time,experimentalOmega)
 
 #plt.plot(times[:-1],uL[:-1])
 plt.show()

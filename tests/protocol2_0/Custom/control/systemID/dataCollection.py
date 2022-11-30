@@ -5,12 +5,12 @@ import math
 
 from motor.motor import *
 
-timeStep=0.002 
-endTime=6
+timeStep=0.001 
+endTime=15
 
 
 def signal(t):# t in seconds [0 10]
-    return 2*math.sin((math.pi/endTime)*t)
+    return 10*math.sin((math.pi/endTime)*t)
 
 #position control
 
@@ -27,8 +27,10 @@ def runTest():
     timeLs=[]
     allData=[]
     uL=[]
+    s=time.time()
     loopEndtime=time.perf_counter()
     presentTime=0
+    c=0
     while presentTime<=endTime:
         loopStartTime=time.perf_counter()
         if(loopStartTime-loopEndtime>=timeStep):
@@ -38,9 +40,10 @@ def runTest():
             allData.append(data)
             timeLs.append(presentTime)
             uL.append(u)
-            presentTime+=timeStep
-            print(presentTime)
+            c+=1
             loopEndtime=time.perf_counter()
+            presentTime=time.time()-s
+            
     dyn1.setGoalPWM(0)
     dyn1.disableTorque()
     data=np.array(allData)
@@ -48,11 +51,12 @@ def runTest():
     uL=np.array(uL)
     gears=np.array([1,1,353.5,353.5])
     dataConv=data*motor.bulkConversion
-    
+    print("svg step: "+str(endTime/c))
+
     np.save("dataConv.npy",dataConv)
     np.save("timeStep.npy",timeArr)
     np.save("u.npy",uL)
-
+    print(presentTime)
 
 if __name__ == '__main__':  
     runTest()
