@@ -4,6 +4,11 @@ import time
 import threading
 
 
+
+
+def sign(n):
+    return int(n>0) - int(n<0)
+
 class myThreadloadCell(threading.Thread):
 
     def __init__(self,sensor,start_event,end_event,force):
@@ -40,7 +45,10 @@ class loop(object):
         return Tm/self.constants[1]
     
     def Tfr(self,omega,Ft,i):
-        return i*self.constants[1]-(self.constants[0]*omega*353.5)-((Ft*self.constants[5])/353.5)
+        return i*self.constants[1]-(self.constants[0]*omega*353.5)-((Ft*self.constants[5])/353.5)-(0.1*9.81*self.constants[5]/353.5)*sign(Ft)
+
+
+
     def startLoop(self):
 
         loadCellStartEvent=threading.Event()
@@ -54,42 +62,46 @@ class loop(object):
         self.motorController.setCurrentControlMode()
         self.motorController.setHome()
         self.motorController.enableTorque()
-        Tfr=0#11.772
-        Ftd=0
+        
+        Ftd=0*9.81
         omega=0
         theta=0
-        loopEndtime=time.perf_counter()
-        stepTime=1/self.freq
+        Tfr=0
+        
         while True:
 
             Tm=self.Tm(omega,Tfr,Ftd)
-
             Id=self.Id(Tm)
-            if((theta*(14/360)*5>=60)and Id>0):
-                Id=0
-                
-            elif((theta*(14/360)*5<=0)and Id<0):
+            pos=theta*(14/360)*5
+            if(((pos>=52)and Id>0) or ((pos<=0)and Id<0)):
                 Id=0
                 
             
+            
+            print("Corriente " +str(Id))
+            print("pos "+str(pos))
+                
             self.motorController.setGoalCurrent(Id*1000)
+
             data=self.motorController.readBulkSensors()*motor.bulkConversion
-            #data=[1,2,3,4]
             self.log.append(data)
             omega=data[2]
             theta=data[3]
+
             i=data[1]/1000
+
 
             loadCellEndEvent.wait()
             loadCellEndEvent.clear()
 
             Ft=force[0][0]*9.81
 
-            print(Ft)
+            
 
             loadCellStartEvent.set()
 
             Tfr=self.Tfr(omega,Ft,i)
+            
 
              #   loopEndtime=time.perf_counter()
         

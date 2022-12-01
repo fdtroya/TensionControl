@@ -19,6 +19,7 @@ class motor(object):
     pulleyR=11#in mm
     displacementPerRotation=14*5 #in mm
     bulkConversion=np.array([0.01356,2.69,0.023981,0.087912087912])
+
     def toSigned32(n):
         n = n & 0xffffffff
         return (n ^ 0x80000000) - 0x80000000
@@ -52,17 +53,16 @@ class motor(object):
         return val 
 
 
-    def __init__(self,ID,port,BAUDRATE) -> None:
+    def __init__(self,port,BAUDRATE) -> None:
         self.portHandler = PortHandler(port)
         self.packetHandler = PacketHandler(PROTOCOL_VERSION)
         self.BAUDRATE= BAUDRATE
-        self.DXL_ID=ID
         self.comLock=Lock()
         self.groupBulkRead = GroupBulkRead(self.portHandler, self.packetHandler)
         
       
         
-    def connect(self):
+    def connect(self,IDS):
 
         # Open port
         if self.portHandler.openPort():
@@ -73,9 +73,9 @@ class motor(object):
         # Set port baudrate
         if self.portHandler.setBaudRate(self.BAUDRATE):
             print("Succeeded to change the baudrate")
-            keyboard.on_release(lambda e: self.keyBinds(e))
-            self.disableTorque()
-            self.setHome()
+            for id in IDS:
+                self.disableTorque(id)
+                self.setHome(id)
            
         else:
             raise Exception("Failed to change the baudrate")
@@ -90,14 +90,14 @@ class motor(object):
         
         
 
-    def writeAddressInner(self,address,value,byteSize):
+    def writeAddressInner(self,address,value,byteSize,DXL_ID):
         self.comLock.acquire()
         if(byteSize==1):
-            dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, self.DXL_ID, address, value)
+            dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, DXL_ID, address, value)
         elif(byteSize==2):
-            dxl_comm_result, dxl_error = self.packetHandler.write2ByteTxRx(self.portHandler, self.DXL_ID, address, value)
+            dxl_comm_result, dxl_error = self.packetHandler.write2ByteTxRx(self.portHandler, DXL_ID, address, value)
         elif(byteSize==4):
-            dxl_comm_result, dxl_error = self.packetHandler.write4ByteTxRx(self.portHandler, self.DXL_ID, address, value)
+            dxl_comm_result, dxl_error = self.packetHandler.write4ByteTxRx(self.portHandler, DXL_ID, address, value)
         else:
             raise Exception("Invalid byteSize")
 
@@ -108,14 +108,14 @@ class motor(object):
         
         self.comLock.release()
         return True
-    def readAddressInner(self,address,byteSize):
+    def readAddressInner(self,address,byteSize,DXL_ID):
         self.comLock.acquire()
         if(byteSize==1):
-            dxl_value, dxl_comm_result, dxl_error = self.packetHandler.read1ByteTxRx(self.portHandler, self.DXL_ID, address)
+            dxl_value, dxl_comm_result, dxl_error = self.packetHandler.read1ByteTxRx(self.portHandler, DXL_ID, address)
         elif(byteSize==2):
-            dxl_value, dxl_comm_result, dxl_error = self.packetHandler.read2ByteTxRx(self.portHandler, self.DXL_ID, address)
+            dxl_value, dxl_comm_result, dxl_error = self.packetHandler.read2ByteTxRx(self.portHandler, DXL_ID, address)
         elif(byteSize==4):
-            dxl_value, dxl_comm_result, dxl_error = self.packetHandler.read4ByteTxRx(self.portHandler, self.DXL_ID, address)
+            dxl_value, dxl_comm_result, dxl_error = self.packetHandler.read4ByteTxRx(self.portHandler, DXL_ID, address)
         else:
             raise Exception("Invalid byteSize")
         
@@ -131,12 +131,12 @@ class motor(object):
 
    
 
-    def readBulkSensors(self):
+    def readBulkSensors(self,DXL_ID):
         start=124
         end=132
         l=4
         size=end-start+l
-        data,result,error=self.packetHandler.readTxRx(self.portHandler,self.DXL_ID,start,size)
+        data,result,error=self.packetHandler.readTxRx(self.portHandler,DXL_ID,start,size)
         if (result == COMM_SUCCESS):
             PWMB=DXL_MAKEWORD(data[0], data[1])
             currentB=DXL_MAKEWORD(data[2], data[3])
@@ -153,12 +153,12 @@ class motor(object):
             PWM,current,velocity,position=[0,0,0,0]
         return (PWM,current,velocity,position)
         
-    def readAddress(self,address,byteSize):
+    def readAddress(self,address,byteSize,DXL_ID):
         count=0
         tries=0
         while True:
             try:    
-                return self.readAddressInner(address,byteSize)
+                return self.readAddressInner(address,byteSize,DXL_ID)
                 
             except Exception as e:
                 print(str(e))
@@ -167,12 +167,12 @@ class motor(object):
                 time.sleep(0.05)
                 count+=1
 
-    def writeAddress(self,address,value,byteSize):
+    def writeAddress(self,address,value,byteSize,DXL_ID):
         count=0
         tries=0
         while True:
             try:    
-                self.writeAddressInner(address,value,byteSize)
+                self.writeAddressInner(address,value,byteSize,DXL_ID)
                 return
             except Exception as e:
                 print(str(e))  
@@ -182,72 +182,73 @@ class motor(object):
                 count+=1
     
             
-    def enableTorque(self):
-        if(not self.isArmed()):
-            self.writeAddress(ADDR_PRO_TORQUE_ENABLE,CMD_TORQUE_ENABLE,LEN_PRO_TORQUE_ENABLE)
+    def enableTorque(self,DXL_ID):
+        if(not self.isArmed(DXL_ID)):
+            self.writeAddress(ADDR_PRO_TORQUE_ENABLE,CMD_TORQUE_ENABLE,LEN_PRO_TORQUE_ENABLE,DXL_ID)
          
 
-    def disableTorque(self):
-        if(self.isArmed()):
-            self.writeAddress(ADDR_PRO_TORQUE_ENABLE,CMD_TORQUE_DISABLE,LEN_PRO_TORQUE_ENABLE) 
+    def disableTorque(self,DXL_ID):
+        if(self.isArmed(DXL_ID)):
+            self.writeAddress(ADDR_PRO_TORQUE_ENABLE,CMD_TORQUE_DISABLE,LEN_PRO_TORQUE_ENABLE,DXL_ID) 
             
     #Control Modes
-    def setControlMode(self,CMD_MODE):
+    def setControlMode(self,CMD_MODE,DXL_ID):
         
-        self.writeAddress(ADDR_OPERATING_MODE,CMD_MODE,LEN_OPERATING_MODE)
+        self.writeAddress(ADDR_OPERATING_MODE,CMD_MODE,LEN_OPERATING_MODE,DXL_ID)
         
 
-    def setCurrentControlMode(self):
-        self.setControlMode(CMD_CURRENT_CONTROL_MODE)
-    def setPositionControlMode(self):
-        self.setControlMode(CMD_POSITION_CONTROL_MODE)
-    def setVelocityControlMode(self):
-        self.setControlMode(CMD_VELOCITY_CONTROL_MODE)
-    def setPWMControlMode(self):
-        self.setControlMode(CMD_PWM_CONTROL_MODE)
+    def setCurrentControlMode(self,DXL_ID):
+        self.setControlMode(CMD_CURRENT_CONTROL_MODE,DXL_ID)
+    def setPositionControlMode(self,DXL_ID):
+        self.setControlMode(CMD_POSITION_CONTROL_MODE,DXL_ID)
+    def setVelocityControlMode(self,DXL_ID):
+        self.setControlMode(CMD_VELOCITY_CONTROL_MODE,DXL_ID)
+    def setPWMControlMode(self,DXL_ID):
+        self.setControlMode(CMD_PWM_CONTROL_MODE,DXL_ID)
     
     #Control Goals
-    def setGoalCurrent(self, current):
+    def setGoalCurrent(self, current,DXL_ID):
         value=motor.mAmpsToNumber(current)
-        self.writeAddress(ADDR_PRO_GOAL_CURRENT,value,LEN_PRO_GOAL_CURRENT)
-    def setGoalPositionAngle(self,positionAngle):
+        self.writeAddress(ADDR_PRO_GOAL_CURRENT,value,LEN_PRO_GOAL_CURRENT,DXL_ID)
+    def setGoalPositionAngle(self,positionAngle,DXL_ID):
         value=motor.angleToNumber(positionAngle)
-        self.writeAddress(ADDR_PRO_GOAL_POSITION,value,LEN_PRO_GOAL_POSITION)
-    def setGoalLinearPosition(self,positionInmm):
-        self.setGoalPositionAngle(motor.linearToAngle(positionInmm))
+        self.writeAddress(ADDR_PRO_GOAL_POSITION,value,LEN_PRO_GOAL_POSITION,DXL_ID)
+    def setGoalLinearPosition(self,positionInmm,DXL_ID):
+        self.setGoalPositionAngle(motor.linearToAngle(positionInmm),DXL_ID)
 
-    def setGoalPWM(self,voltage):
+    def setGoalPWM(self,voltage,DXL_ID):
         value=motor.dutyCycleToNumber(voltage)
-        self.writeAddress(ADDR_PRO_GOAL_PWM,value,LEN_PRO_GOAL_PWM)
+        self.writeAddress(ADDR_PRO_GOAL_PWM,value,LEN_PRO_GOAL_PWM,DXL_ID)
 
-    def setHomeOffset(self,numberPosition):
-        self.writeAddress(ADDR_PRO_HOMING_OFFSET,numberPosition,LEN_PRO_HOMING_OFFSET)
-    def setHome(self):
+    def setHomeOffset(self,numberPosition,DXL_ID):
+        self.writeAddress(ADDR_PRO_HOMING_OFFSET,numberPosition,LEN_PRO_HOMING_OFFSET,DXL_ID)
+    def setHome(self,DXL_ID):
         
-        pos=self.readAddress(ADDR_PRO_PRESENT_POSITION,LEN_PRO_GOAL_POSITION)
-        currentoffset=self.readAddress(ADDR_PRO_HOMING_OFFSET,LEN_PRO_HOMING_OFFSET)
-        self.setHomeOffset(currentoffset-pos)
+        pos=self.readAddress(ADDR_PRO_PRESENT_POSITION,LEN_PRO_GOAL_POSITION,DXL_ID)
+        currentoffset=self.readAddress(ADDR_PRO_HOMING_OFFSET,LEN_PRO_HOMING_OFFSET,DXL_ID)
+        self.setHomeOffset(currentoffset-pos,DXL_ID)
         
 
     #Read Values
-    def getPresentCurrent(self):
-        return motor.numberTomAmps(self.readAddress(ADDR_PRO_PRESENT_CURRENT,LEN_PRO_GOAL_CURRENT))
-    def getPresentPositionAngle(self):
-        number=self.readAddress(ADDR_PRO_PRESENT_POSITION,LEN_PRO_GOAL_POSITION)
+    def getPresentCurrent(self,DXL_ID):
+        return motor.numberTomAmps(self.readAddress(ADDR_PRO_PRESENT_CURRENT,LEN_PRO_GOAL_CURRENT,DXL_ID))
+    def getPresentPositionAngle(self,DXL_ID):
+        number=self.readAddress(ADDR_PRO_PRESENT_POSITION,LEN_PRO_GOAL_POSITION,DXL_ID)
         return motor.numberToAngle(number)
-    def getPresentPWM(self):
-        return motor.numberToDutyCicle(self.readAddress(ADDR_PRO_PRESENT_PWM,LEN_PRO_GOAL_PWM))
-    def getPresentLinearposition(self):
-        return motor.angleToLinear(self.getPresentPositionAngle())
-    def getPresentVelocity(self):
-        return   motor.numberToradS(self.readAddress(ADDR_PRO_PRESENT_VELOCITY,LEN_PRO_GOAL_VELOCITY))
+    def getPresentPWM(self,DXL_ID):
+        return motor.numberToDutyCicle(self.readAddress(ADDR_PRO_PRESENT_PWM,LEN_PRO_GOAL_PWM,DXL_ID))
+    def getPresentLinearposition(self,DXL_ID):
+        return motor.angleToLinear(self.getPresentPositionAngle(DXL_ID))
+    def getPresentVelocity(self,DXL_ID):
+        return   motor.numberToradS(self.readAddress(ADDR_PRO_PRESENT_VELOCITY,LEN_PRO_GOAL_VELOCITY,DXL_ID))
 
 
 
 
-            
+    def isArmed(self,DXL_ID):
+        return self.readAddress(ADDR_PRO_TORQUE_ENABLE,LEN_PRO_TORQUE_ENABLE,DXL_ID)            
 
-
+"""
     def keyBinds(self,e):
      
         if( e.name=='d' ):          
@@ -259,10 +260,9 @@ class motor(object):
         elif(e.name==('p')):
             print(self.getPresentPositionAngle())
             
-           
+   """        
 
-    def isArmed(self):
-        return self.readAddress(ADDR_PRO_TORQUE_ENABLE,LEN_PRO_TORQUE_ENABLE)
+
 
 
 

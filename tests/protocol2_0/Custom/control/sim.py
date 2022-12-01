@@ -102,9 +102,9 @@ while (currentTime<=(endTime+tolerance)):
     omega=omegaL[-1]
     i=iL[-1]
     
-    if(abs(currentTime-(cont)*timeStep)<=tolerance):
+    if(abs(currentTime-(cont)*timeStep)<=tolerance or True):
         cont+=1
-        dataOmega.append(sensorSim(omega/353.5))
+        dataOmega.append(omega)
         times.append(currentTime)
 
     #Tf=friction.caclTorque(omega)
@@ -119,20 +119,19 @@ while (currentTime<=(endTime+tolerance)):
     iL.append(i+dt*iDot)
     currentTime+=dt
 
-a=np.load("dataConv.npy")
-b=np.load("dataBConv.npy")
-#a[:,2]=a[:,2]*353.5
-time=np.load("timeStep.npy")
-omegaL=np.array(dataOmega)
+a=np.load("dataFiltered.npy")
+b=np.load("dataFrFiltered.npy")
 
-plt.plot(times,omegaL)
-experimentalOmega=a[:,2]
-experimentalBOmega=b[:,2]
+
+omegaSim=np.array(dataOmega)
 
 
 
-plt.plot(time,experimentalOmega)
 
+
+plt.plot(times,omegaSim)
+plt.plot(a[:,0],a[:,1])
+plt.plot(b[:,0],b[:,1])
 #plt.plot(times[:-1],uL[:-1])
 plt.show()
 print(c)
