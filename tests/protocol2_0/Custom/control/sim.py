@@ -22,7 +22,7 @@ Ts=0.058*Ke
 Vs=6.106*10**3
 dt=0.000000001
 
-c=[B,Kt/J,Ra/La,Ke/La,1/La]#,Tcr/Jr,(Tsr-Tcr)/Jr,alphar]
+c=[B,Kt/J,Ra/La,Ke/La,1/La]
 K1,K2,K3,K4,K5=c
 
 
