@@ -2,12 +2,6 @@ from dataCollection import signal
 import math 
 import numpy as np
 import matplotlib.pyplot as plt
-"""
-start=time.time()
-for i in range(10000):
-    a=math.sign(i)
-end=time.time()
-"""
 
 def sensorSim(omega):
     return (omega//0.02391)*0.02391
@@ -15,6 +9,7 @@ def sensorSim(omega):
 
 def sign(n):
     return int(n>0) - int(n<0)
+    
 def runSim(listK,timeStep,endTime):
     currentTime=0
     cont=0
@@ -40,10 +35,6 @@ def runSim(listK,timeStep,endTime):
             dataOmega.append(sensorSim(omega/353.5))
             times.append(currentTime)
 
-        sgn=sign(omega)
-
-        #omegaDot=-K1*omega+K2*i-K6*sgn-K7*math.e**(-K8*abs(omega))*sgn
-        #iDot=-K4*omega-K3*i+K5*u
 
         omegaDot=-K1*omega+K2*i
         iDot=-K4*omega-K3*i+u*K5
