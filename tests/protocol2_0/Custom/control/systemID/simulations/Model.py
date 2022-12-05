@@ -58,7 +58,8 @@ class motorFrictionModel(motorModel):
         g=self.Tc+(self.Ts-self.Tc)*math.e**-((omega/self.Vs)**2)
         return g
 
-    def calcZDot(self,omega,z):
+    def calcZDot(self,stateVar,input):
+        omega,i,z=stateVar
         g=self.calcStribertEffect(omega)
         epzDot=omega-(abs(omega)/g)*z
         return epzDot*self.sigma0
@@ -66,8 +67,11 @@ class motorFrictionModel(motorModel):
     def omegaDot(self, stateVar, input):
         omega,i,z=stateVar
         v,Ft=input
-        z
-        omegaDotJ=-self.B*omega+i*self.Kt-Ft*self.r-(z+self.sigma1/)
+        zDot=self.calcZDot(omega,z)
+        Tfr=z+self.sigma1*zDot/self.sigma0+self.sigma2*omega
+        omegaDotJ=-self.B*omega+i*self.Kt-Ft*self.r-Tfr
+        return omegaDotJ/self.J
+
         
 
     
@@ -82,4 +86,5 @@ class motorFrictionModel(motorModel):
         self.Tc=Tc
         self.Vs=Vs
         self.r=r
+        self.stateEq=[self.omegaDot,self.iDot,self.calcZDot]
 

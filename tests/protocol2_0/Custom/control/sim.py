@@ -30,45 +30,6 @@ K1,K2,K3,K4,K5=c
 def sign(n):
     return int(n>0) - int(n<0)
 
-class luGreModel(object):
-    def __init__(self,sigma0,sigma1,sigma2,Ts,Tc,Vs,dt):
-        self.sigma0=sigma0
-        self.sigma1=sigma1
-        self.sigma2=sigma2
-        self.Ts=Ts
-        self.Tc=Tc
-        self.Vs=Vs
-        self.z=0
-        self.zDot=0
-        self.dt=dt
-
-    def calcStribertEffect(self,omega):
-        r=self.Tc+(self.Ts-self.Tc)*math.e**-((omega/self.Vs)**2)
-        return r
-
-    def calcStribertEffect2(self,omega):
-        if(omega==0):
-            hP=self.calcStricbertEffect2(self,0.001)
-            hM=self.calcStricbertEffect2(self,-0.001)
-            return (hP+hM)/2
-        else:
-            return self.calcStrickbertEffect(omega)
-
-
-    def calcZDot(self,omega,z):
-        g=self.calcStribertEffect(omega)
-        epzDot=omega-(abs(omega)/g)*z
-        return epzDot
-
-
-
-    def caclTorque(self,omega):
-        epZDot=self.calcZDot(omega,self.z)
-        Tf=self.z+self.sigma1*epZDot+self.sigma2*omega
-        self.zDot=epZDot*self.sigma0
-        self.z=self.z+(self.zDot*self.dt)
-        
-        return Tf
 
 
 def sensorSim(omega):
@@ -82,7 +43,7 @@ def sat(sig,threshold):
         return -threshold
     return sig
 
-friction=luGreModel(sigma0,sigma1,sigma2,Ts,Tc,Vs,dt)
+
 times=[]
 tolerance=0.0001
 currentTime=0
@@ -95,6 +56,7 @@ iDotL=[]
 dataOmega=[]
 datau=[]
 cont=0
+
 while (currentTime<=(endTime+tolerance)):
     
 
@@ -108,8 +70,8 @@ while (currentTime<=(endTime+tolerance)):
         dataOmega.append(omega)
         times.append(currentTime)
 
-    Tf=friction.caclTorque(omega)
-    omegaDot=-K1*omega+K2*i-Tf/J
+   
+    omegaDot=-K1*omega+K2*i
     iDot=-K4*omega-K3*i+u*K5
 
     omegaDotL.append(omegaDot)
