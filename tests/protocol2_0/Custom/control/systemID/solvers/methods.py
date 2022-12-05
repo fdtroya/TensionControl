@@ -1,64 +1,129 @@
-import Method
-from Solver import secant_method
-class euler_delante(Method.method):
-    def __init__(self,derivative,real_y,step,initial_p,final_x=None,final_y=None):
-        super().__init__(derivative,real_y,step,initial_p,final_x,final_y)
+import numpy as np
+from scipy.optimize import root
+
+class Method(object):
+    def __init__(self,inputFunction,step,initial_StateVar,final_t=10):    
+        
+        self.inputFunction=inputFunction
+        self.ts=[0]
+        self.stateVarLog=[initial_StateVar]
+        self.input=[self.inputFunction(self.ts[-1])]
+        self.step=step
+        self.final_t=final_t
+        
+    def bindStateVarDerivative(self,stateVarDerivative):
+        self.stateVarDerivative=stateVarDerivative
+
+    def method(self):
+        return 0
+    
+
+    def guess(self):
+        stateVar_i=self.stateVarLog[-1]
+        input_i=self.input[-1]
+
+        derivatives=self.stateVarDerivative(stateVar_i,input_i)
+        return stateVar_i+self.step*derivatives
+
+    def isSolved(self):
+        return self.ts[-1]>=self.final_t
+
+    def solve(self):
+        while not self.isSolved():
+            ti=self.ts[-1]
+
+            stateVar_i1=self.method()
+            t_i1=ti+self.step
+
+            self.input.append(self.inputFunction(t_i1))
+            self.ts.append(t_i1)
+            self.stateVarLog.append(stateVar_i1)
+
+        self.done=True
+
+class euler_delante(Method):
+    def __init__(self,inputFunction,step,initial_StateVar,final_t=10):
+        super().__init__(inputFunction,step,initial_StateVar,final_t)
         self.name="Euler hacia Delante"
     def method(self):
-        y=self.array_ys[-1]
-        x=self.array_xs[-1]
-        yi_1=y+self.step*self.eval_derivative(x,y)
-        return yi_1
 
-class euler_atras(Method.method):
-    def __init__(self,derivative,real_y,step,initial_p,final_x=None,final_y=None):
-        super().__init__(derivative,real_y,step,initial_p,final_x,final_y)
+        stateVar_i1=self.guess()
+
+        return stateVar_i1
+
+class euler_atras(Method):
+
+    def __init__(self,inputFunction,step,initial_StateVar,final_t=10):
+        super().__init__(inputFunction,step,initial_StateVar,final_t)
         self.name="Euler hacia Atras"
-    def function(self,yi_1):
-        return yi_1-self.array_ys[-1]-self.step*self.eval_derivative(self.array_xs[-1]+self.step,yi_1)
-    def method(self):
-        guess=self.array_ys[-1]+self.step*self.eval_derivative(self.array_xs[-1],self.array_ys[-1])
-        return secant_method(self.function,guess)
 
-class CrankNicolson(Method.method):
-    def __init__(self,derivative,real_y,step,initial_p,final_x=None,final_y=None):
-        super().__init__(derivative,real_y,step,initial_p,final_x,final_y)
+    def function(self,stateVar_i1):
+        stateVar_i=self.stateVarLog[-1]
+        t_i=self.ts[-1]
+        input_i1=self.inputFunction(t_i+self.step)
+
+        return stateVar_i1-stateVar_i-self.step*self.stateVarDerivative(stateVar_i1,input_i1)
+
+    def method(self):
+        guess=self.guess()
+        return root(fun=self.function,x0=guess,jac=False) 
+
+class CrankNicolson(Method):
+    def __init__(self,inputFunction,step,initial_StateVar,final_t=10):
+        super().__init__(inputFunction,step,initial_StateVar,final_t)
         self.name="Crank Nicolson"
-    def function(self,yi_1):
-        return yi_1-self.array_ys[-1]-(self.step/2)*(self.eval_derivative(self.array_xs[-1],self.array_ys[-1])+self.eval_derivative(self.array_xs[-1]+self.step,yi_1))
-    def method(self):
-        guess=self.array_ys[-1]+self.step*self.eval_derivative(self.array_xs[-1],self.array_ys[-1])
-        return secant_method(self.function,guess)
+        
+    def function(self,stateVar_i1):
+        stateVar_i=self.stateVarLog[-1]
+        t_i=self.ts[-1]
+        input_i=self.input[-1]
+        input_i1=self.inputFunction(t_i+self.step)
 
-class Heun(Method.method):
-    def __init__(self,derivative,real_y,step,initial_p,final_x=None,final_y=None):
-        super().__init__(derivative,real_y,step,initial_p,final_x,final_y)
+        return stateVar_i1-stateVar_i-(self.step/2)*(self.stateVarDerivative(stateVar_i,input_i)+self.eval_derivative(stateVar_i1,input_i1))
+
+    def method(self):
+        guess=self.guess()
+        return root(fun=self.function,x0=guess,jac=False)
+
+class Heun(Method):
+    def __init__(self,inputFunction,step,initial_StateVar,final_t=10):
+        super().__init__(inputFunction,step,initial_StateVar,final_t,)
         self.name="Heun"
     def method(self):
-        y=self.array_ys[-1]
-        x=self.array_xs[-1]
-        yi_1=y+(self.step/2)*(self.eval_derivative(x,y)+self.eval_derivative(x+self.step,y+self.step*self.eval_derivative(x,y)))
-        return yi_1
-class PuntoMedio(Method.method):
-    def __init__(self,derivative,real_y,step,initial_p,final_x=None,final_y=None):
-        super().__init__(derivative,real_y,step,initial_p,final_x,final_y)
+        stateVar_i=self.stateVarLog[-1]
+        input_i=self.input[-1]
+        t_i=self.ts[-1]
+        input_i1=self.inputFunction(t_i+self.step)
+        stateVar_i1=stateVar_i+(self.step/2)*(self.stateVarDerivative(stateVar_i,input_i)+self.stateVarDerivative(self.guess(),input_i1))
+        return stateVar_i1
+
+
+
+class PuntoMedio(Method):
+    def __init__(self,inputFunction,step,initial_StateVar,final_t=10):
+        super().__init__(inputFunction,step,initial_StateVar,final_t,)
         self.name="Punto Medio"
     def method(self):
-        y=self.array_ys[-1]
-        x=self.array_xs[-1]
-        yi_1=y+self.step*self.eval_derivative(x+0.5*self.step,y+0.5*self.step*self.eval_derivative(x,y))
-        return yi_1
-class RungeKutta4th(Method.method):
-    def __init__(self,derivative,real_y,step,initial_p,final_x=None,final_y=None):
-        super().__init__(derivative,real_y,step,initial_p,final_x,final_y)
+        stateVar_i=self.stateVarLog[-1]
+        input_i=self.input[-1]
+        t_i=self.ts[-1]
+        stateVar_i1=stateVar_i+self.step*self.stateVarDerivative(stateVar_i+0.5*self.step*self.stateVarDerivative(stateVar_i,input_i),self.inputFunction(t_i+0.5*self.step))
+        return stateVar_i1
+
+
+
+class RungeKutta4th(Method):
+    def __init__(self,inputFunction,step,initial_StateVar,final_t=10):
+        super().__init__(inputFunction,step,initial_StateVar,final_t,)
         self.name="Runge Kutta 4to Orden"
     def method(self):
-        yi=self.array_ys[-1]
-        xi=self.array_xs[-1]
+        stateVar_i=self.stateVarLog[-1]
+        t_i=self.ts[-1]
+        input_i=self.input[-1]
         h=self.step
-        k1=self.eval_derivative(xi,yi)
-        k2=self.eval_derivative(xi+0.5*h,yi+0.5*h*k1)
-        k3=self.eval_derivative(xi+0.5*h,yi+0.5*h*k2)
-        k4=self.eval_derivative(xi+h,yi+h*k3)
-        yi_1=yi+(h/6)*(k1+2*k2+2*k3+k4)
-        return yi_1
+        k1=h*self.stateVarDerivative(stateVar_i,input_i)
+        k2=h*self.stateVarDerivative(stateVar_i+0.5*k1,self.inputFunction(t_i+0.5*h))
+        k3=h*self.stateVarDerivative(stateVar_i+0.5*k2,self.inputFunction(t_i+0.5*h))
+        k4=h*self.stateVarDerivative(stateVar_i+k3,self.inputFunction(t_i+h))
+        stateVar_i1=stateVar_i+k1/6+k2/3+k3/3+k4/6
+        return stateVar_i1
