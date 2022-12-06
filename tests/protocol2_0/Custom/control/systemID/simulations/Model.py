@@ -3,12 +3,13 @@ import math
 class Model(object):
 
 
-    def __init__(self,stateEq,inputFunction):
+    def __init__(self,stateEq,inputFunction,initialState):
         self.stateEq=stateEq
         self.stateVarLog=[]
         self.inputLog=[]
         self.tLog=[]
         self.inputFunction=inputFunction
+        self.initialState=initialState
     
 
     def evalStateEq(self,t,stateVector):
@@ -17,14 +18,7 @@ class Model(object):
         for eq in self.stateEq:
             stateVarDot.append(eq(stateVector,input))
         return np.array(stateVarDot)
-    """
-    def sim(self):
-        self.solver.solve()
-        self.stateVarLog=np.array(self.solver.stateVarLog)
-        self.inputLog=np.array(self.solver.input)
-        self.tLog=np.array(self.solver.ts)
-        
-"""
+
 
 class motorModel(Model):
 
@@ -40,7 +34,7 @@ class motorModel(Model):
         iDotL=-self.Ke*omega-self.Ra*i+v
         return iDotL/self.La
 
-    def __init__(self, Ra,La,J,Ke,Kt,B,inputFunction):
+    def __init__(self, Ra,La,J,Ke,Kt,B,inputFunction,initialState):
         self.Ra=Ra
         self.La=La
         self.J=J
@@ -48,7 +42,7 @@ class motorModel(Model):
         self.Kt=Kt
         self.B=B
         stateEq=[self.omegaDot,self.iDot]
-        super().__init__(stateEq,inputFunction)
+        super().__init__(stateEq,inputFunction,initialState)
     
     
 
@@ -82,8 +76,8 @@ class motorFrictionModel(motorModel):
     
 
 
-    def __init__(self, Ra, La, J, Ke, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs,r,inputFunction):
-        super().__init__(Ra, La, J, Ke, Kt, B, inputFunction)
+    def __init__(self, Ra, La, J, Ke, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs,r,inputFunction,initialState):
+        super().__init__(Ra, La, J, Ke, Kt, B, inputFunction,initialState)
         self.stateEq=[self.omegaDot,self.iDot,self.calcZDot]
         self.sigma0=sigma0
         self.sigma1=sigma1
