@@ -1,10 +1,12 @@
-from dataCollection import signal
-from dataCollection import timeStep
+import systemID.simulations.Model as Models
+import time
+import scipy.integrate as ODE
+
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-from dataCollection import endTime
 
+endTime=10
 
 Ra=8.1
 La=0.28*10**-3
@@ -14,17 +16,13 @@ Ke=0.0102469
 Kt=10.2*10**-3 
 B=3.121*10**-7
 
-sigma0=100
-sigma1=1.5
-sigma2=0.004
+sigma0=0.1
+sigma1=0.1
+sigma2=1
 Tc=0.023*Ke
 Ts=0.058*Ke
 Vs=6.106*10**3
-dt=0.000000001
-
-c=[B,Kt/J,Ra/La,Ke/La,1/La]
-K1,K2,K3,K4,K5=c
-
+r=(22.28/2)*10**-3
 
 
 def sign(n):
@@ -43,58 +41,32 @@ def sat(sig,threshold):
         return -threshold
     return sig
 
-
-times=[]
-tolerance=0.0001
-currentTime=0
-omegaL=[0]
-iL=[0]
-omegaDotL=[]
-iDotL=[]
-
-
-dataOmega=[]
-datau=[]
-cont=0
-
-while (currentTime<=(endTime+tolerance)):
-    
-
-    u=signal(currentTime)
-
-    omega=omegaL[-1]
-    i=iL[-1]
-    
-    if(abs(currentTime-(cont)*timeStep)<=tolerance or True):
-        cont+=1
-        dataOmega.append(omega)
-        times.append(currentTime)
-
-   
-    omegaDot=-K1*omega+K2*i
-    iDot=-K4*omega-K3*i+u*K5
-
-    omegaDotL.append(omegaDot)
-    iDotL.append(iDot)
-
-    
-    omegaL.append(omega+dt*omegaDot)
-    iL.append(i+dt*iDot)
-    currentTime+=dt
-
-a=np.load("dataFiltered.npy")
-b=np.load("dataFrFiltered.npy")
-
-
-omegaSim=np.array(dataOmega)
+def signal(t):# t in seconds [0 10]
+    return (3*math.sin((math.pi/endTime)*t),0)
 
 
 
 
 
-plt.plot(times,omegaSim)
-plt.plot(a[:,0],a[:,1])
-plt.plot(b[:,0],b[:,1])
-#plt.plot(times[:-1],uL[:-1])
+#motor=Models.motorModel(Ra,La,J,Ke,Kt,B,signal)
+motor=Models.motorFrictionModel(Ra,La,J,Ke,Kt,B,sigma0,sigma1,sigma2,Ts,Tc,Vs,r,signal)
+sol=ODE.solve_ivp(motor.evalStateEq,[0,10],[0,0,0],method='LSODA')
+plt.plot(sol.t,sol.y[0])
+"""
+methods=['RK45','RK23','DOP853','Radau','BDF','LSODA']
+ys=[]
+ts=[]
+for m in methods:
+    initial=time.time()
+    sol=ODE.solve_ivp(motorModel.evalStateEq,[0,10],[0,0],method=m)
+    print(m+" took: "+str(time.time()-initial)+ " with status: "+str(sol.status))
+    ys.append(sol.y[0])
+    ts.append(sol.t)
+
+
+plt.plot(ts[-1],ys[-1])
+plt.plot(ts[0],ys[0])
+"""
+
+
 plt.show()
-print(c)
