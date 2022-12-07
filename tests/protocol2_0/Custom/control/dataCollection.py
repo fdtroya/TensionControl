@@ -2,8 +2,11 @@ import numpy as np
 import time
 import sys, os
 import math
-
+import matplotlib.pyplot as plt
 from motor.motor import *
+from scipy.signal import savgol_filter
+from scipy.interpolate import UnivariateSpline
+
 
 timeStep=0.00 
 endTime=9
@@ -58,8 +61,38 @@ def runTest():
 
     np.save("dataConv.npy",dataConv)
     
+def post(name):
+    data=np.load(name)
+    omega=data[:,2]
+    t=data[:,-1]
+    newOmegaData=[]
     
+    repeats=0
+    for w_index in range(len(omega)):
+        
+        if w_index==0:
+            newOmegaData.append([omega[w_index],t[w_index]])
+        else:
+            lastO,lastT=newOmegaData[-1]
+            if (lastO!= omega[w_index])or repeats>=120 :
+                repeats=0
+                newOmegaData.append([omega[w_index],t[w_index]])
+            else:
+                repeats+=0
+
+    newOmegaData=np.array(newOmegaData)
+    tn=newOmegaData[:,-1]
+    filteredNew=savgol_filter(newOmegaData[:,0], 5, 3)
+    tn=tn.reshape((len(tn),1))
+    filteredNew=filteredNew.reshape((len(filteredNew),1))
+
+
+    
+    
+    return np.append(filteredNew,tn,axis=1)
+
     
 
 if __name__ == '__main__':  
-    runTest()
+    a=post("dataFrConv.npy")
+    np.save("dataFrFiltered.npy",a)

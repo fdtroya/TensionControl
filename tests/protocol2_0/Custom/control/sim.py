@@ -1,7 +1,8 @@
 import systemID.simulations.Model as Models
 import time
 import scipy.integrate as ODE
-
+from scipy.signal import resample
+from scipy.signal import resample_poly
 import numpy as np
 import matplotlib.pyplot as plt
 import math
@@ -45,28 +46,20 @@ def signal(t):# t in seconds [0 10]
     return (3*math.sin((math.pi/endTime)*t),0)
 
 
+motor=Models.motorFrictionModel(Ra,La,J,Kt,B,sigma0,sigma1,sigma2,Ts,Tc,Vs,r,signal,[0,0,0])
+motor.sim()
+a=len(motor.y[0])
 
 
+data=np.load("dataConv.npy")
+timeS=data[:,-1]
+omega=data[:,2]
+#plt.plot(timeS,omega)
+p=len(omega)
+newdata=resample(motor.y[0],p,motor.t,domain='time')
 
-#motor=Models.motorModel(Ra,La,J,Ke,Kt,B,signal)
-motor=Models.motorFrictionModel(Ra,La,J,Ke,Kt,B,sigma0,sigma1,sigma2,Ts,Tc,Vs,r,signal)
-sol=ODE.solve_ivp(motor.evalStateEq,[0,10],[0,0,0],method='LSODA')
-plt.plot(sol.t,sol.y[0])
-"""
-methods=['RK45','RK23','DOP853','Radau','BDF','LSODA']
-ys=[]
-ts=[]
-for m in methods:
-    initial=time.time()
-    sol=ODE.solve_ivp(motorModel.evalStateEq,[0,10],[0,0],method=m)
-    print(m+" took: "+str(time.time()-initial)+ " with status: "+str(sol.status))
-    ys.append(sol.y[0])
-    ts.append(sol.t)
-
-
-plt.plot(ts[-1],ys[-1])
-plt.plot(ts[0],ys[0])
-"""
-
+plt.plot(newdata[1],newdata[0])
+#plt.plot(motor.t,motor.y[0])
 
 plt.show()
+

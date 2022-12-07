@@ -1,15 +1,27 @@
 import numpy as np
 import math
+import scipy.integrate as ODE
+
 class Model(object):
 
 
-    def __init__(self,stateEq,inputFunction,initialState):
+    def __init__(self,stateEq,inputFunction,initialState,method='LSODA',timerange=[0,10]):
         self.stateEq=stateEq
         self.stateVarLog=[]
         self.inputLog=[]
         self.tLog=[]
         self.inputFunction=inputFunction
         self.initialState=initialState
+        
+        self.solverMethod=method
+        self.timeRange=timerange
+        self.y=[]
+        self.t=[]
+
+        self.fitness=0
+        self.rank=0
+        self.prob=0
+        self.constants=[]
     
 
     def evalStateEq(self,t,stateVector):
@@ -19,6 +31,10 @@ class Model(object):
             stateVarDot.append(eq(stateVector,input))
         return np.array(stateVarDot)
 
+    def sim(self):
+        sol=ODE.solve_ivp(self.evalStateEq,self.timeRange,self.initialState,method=self.solverMethod)
+        self.y=sol.y
+        self.t=sol.t
 
 class motorModel(Model):
 
@@ -73,11 +89,13 @@ class motorFrictionModel(motorModel):
         return iDotL/self.La
         
 
-    
 
 
-    def __init__(self, Ra, La, J, Ke, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs,r,inputFunction,initialState):
-        super().__init__(Ra, La, J, Ke, Kt, B, inputFunction,initialState)
+
+    def __init__(self,r,inputFunction,initialState,Ra=None, La=None, J=None, Kt=None, B=None,sigma0=None,sigma1=None,sigma2=None,Ts=None,Tc=None,Vs=None,constants=None):
+        if(constants!=None):
+            Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs=constants
+        super().__init__(Ra, La, J, Kt, Kt, B, inputFunction,initialState)
         self.stateEq=[self.omegaDot,self.iDot,self.calcZDot]
         self.sigma0=sigma0
         self.sigma1=sigma1
@@ -86,9 +104,10 @@ class motorFrictionModel(motorModel):
         self.Tc=Tc
         self.Vs=Vs
         self.r=r
-
+        self.constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
         self.calculated=False
         self.used=False
         self.zDot=0
+        self.sim()
         
 
