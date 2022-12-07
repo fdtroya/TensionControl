@@ -50,19 +50,20 @@ class motorModel(Model):
         iDotL=-self.Ke*omega-self.Ra*i+v
         return iDotL/self.La
 
-    def __init__(self, Ra,La,J,Ke,Kt,B,inputFunction,initialState):
+    def __init__(self, Ra,La,J,Kt,B,inputFunction,initialState):
         self.Ra=Ra
         self.La=La
         self.J=J
-        self.Ke=Ke
+        self.Ke=Kt
         self.Kt=Kt
         self.B=B
         stateEq=[self.omegaDot,self.iDot]
         super().__init__(stateEq,inputFunction,initialState)
+        self.sim()
     
     
 
-class motorFrictionModel(motorModel):
+class motorFrictionModel(Model):
 
     def calcStribertEffect(self,omega):
         g=self.Tc+(self.Ts-self.Tc)*math.e**-((omega/self.Vs)**2)
@@ -95,7 +96,12 @@ class motorFrictionModel(motorModel):
     def __init__(self,r,inputFunction,initialState,Ra=None, La=None, J=None, Kt=None, B=None,sigma0=None,sigma1=None,sigma2=None,Ts=None,Tc=None,Vs=None,constants=None):
         if(constants!=None):
             Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs=constants
-        super().__init__(Ra, La, J, Kt, Kt, B, inputFunction,initialState)
+        self.Ra=Ra
+        self.La=La
+        self.J=J
+        self.Ke=Kt
+        self.Kt=Kt
+        self.B=B
         self.stateEq=[self.omegaDot,self.iDot,self.calcZDot]
         self.sigma0=sigma0
         self.sigma1=sigma1
@@ -108,6 +114,7 @@ class motorFrictionModel(motorModel):
         self.calculated=False
         self.used=False
         self.zDot=0
+        super().__init__(self.stateEq,inputFunction,initialState)
         self.sim()
         
 

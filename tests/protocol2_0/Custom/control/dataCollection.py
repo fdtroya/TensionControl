@@ -74,17 +74,20 @@ def post(name):
             newOmegaData.append([omega[w_index],t[w_index]])
         else:
             lastO,lastT=newOmegaData[-1]
-            if (lastO!= omega[w_index])or repeats>=120 :
+            if (lastO!= omega[w_index])or repeats>=50 :
                 repeats=0
                 newOmegaData.append([omega[w_index],t[w_index]])
             else:
-                repeats+=0
+                repeats+=1
 
     newOmegaData=np.array(newOmegaData)
     tn=newOmegaData[:,-1]
     filteredNew=savgol_filter(newOmegaData[:,0], 5, 3)
     tn=tn.reshape((len(tn),1))
     filteredNew=filteredNew.reshape((len(filteredNew),1))
+    plt.plot(t,omega)
+    plt.plot(tn,filteredNew)
+    plt.show()
 
 
     
@@ -94,5 +97,5 @@ def post(name):
     
 
 if __name__ == '__main__':  
-    a=post("dataFrConv.npy")
-    np.save("dataFrFiltered.npy",a)
+    a=post("dataConv.npy")
+    np.save("dataHFiltered.npy",a)

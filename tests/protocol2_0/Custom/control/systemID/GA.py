@@ -25,7 +25,7 @@ Vs=6.106*10**-2
 
 r=(22.28/2)*10**-3
 Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs=[Ra, La, J, Kt, 0.0, 2.822972442765255e-06, 4.179463886982079e-06, 2.425631784317123e-05, 1.6291874078276243, 0.13508707850430987, 5.438225126970719]
-parameters={"mutation":0.03,"mutationRange":[0.1,10],"crossover":0.9,"geneTransfer":0.5,"populationSize":1000,"stopErr":0.9999,"q":0.25}
+parameters={"mutation":0.03,"mutationRange":[0.1,10],"crossover":0.9,"geneTransfer":0.5,"populationSize":100,"stopErr":0.9999,"q":0.25}
 
 def signal(t):# t in seconds [0 10]
     return (3*math.sin((math.pi/endTime)*t),0) 
@@ -52,7 +52,7 @@ class GA:
     def randomIndividual(self,i):
         l=0.9
         l1=0
-        u=1.2
+        u=1.1
         u1=50
         Rar=rd.uniform(l*Ra,u*Ra)
         Lar=rd.uniform(l*La,u*La)
