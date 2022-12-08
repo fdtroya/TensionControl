@@ -29,7 +29,7 @@ bounds1=[(9*10**-4,7*10**-3),(2.65,2.8),(9*10**-2,7*10**-1)]
 guess1=[2.16827014e-03, 2.74042159e+00 ,2.95628771e-01]
 
 boundsFr=[(1500,5000),(10,500),(0.1,0.15),(0.12,0.3),(0.1,0.12),(0.0000001,0.001)]
-guessFr=[1.98906851e+03, 5.16298325e+01, 1.49493816e-01, 2.20830535e-01, 1.12889988e-01, 2.35835012e-04]
+guessFr=[4.34449954e+03 ,6.71448705e+01 ,1.49767062e-01 ,1.67680509e-01,1.12444163e-01, 3.91864275e-04]
 
 endTimeFr=10
 endTime=10
@@ -101,7 +101,7 @@ def dual():
     print(func(s.x,plot=True))  
 
 def funcFr(x,plot=False):
-    interest=3
+    interest=10
     sigma0,sigma1,sigma2,Ts,Tc,Vs=list(x)
     constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
     individual=Model.motorFrictionModel(constants=constants,r=r,initialState=[0,0,0],inputFunction=signalFr,timeRange=[0,interest])
@@ -179,10 +179,10 @@ def HoppingFr():
 
 if __name__ == '__main__':  
     #evolve()
-    evolveFr()
+    #evolveFr()
     #print(func(guess,True))
     #dual()
     #SHFr()
-    #funcFr(guessFr,True)
+    funcFr(guessFr,True)
     #SH()
     #minimization()
