@@ -8,57 +8,64 @@ from systemID.optimize import signalFr
 from systemID.optimize import signal
 from systemID.optimize import endTime
 from systemID.optimize import endTimeFr
+timeStep=0
+dirs=[1,-1]
 
-
-timeStep=0.00 
-
-
-
-id=1
-def runTest(): 
-    dyn1=motor('COM3',4000000)
+def dynamicTest(id,com):
+    dyn1=motor(com,4000000)
     dyn1.connect([id])
     dyn1.setPWMControlMode(id)
-    # Enable Dynamixel Torque 
+    
     dyn1.setHome(id)
     dyn1.enableTorque(id) 
-    pos=0
-    timeLs=[]
-    allData=[]
-    uL=[]
+    
+   
+    
+    allData=[]#list of arrays first for positive direction, second for negative direction
     s=time.time()
     loopEndtime=time.perf_counter()
     presentTime=0
-    c=0
-
-    while presentTime<=endTimeFr:
-        loopStartTime=time.perf_counter()
-        if(loopStartTime-loopEndtime>=timeStep):
-            u=signalFr(presentTime)[0]
-            dyn1.setGoalPWM(u,id)
-            data=dyn1.readBulkSensors(id)
-            allData.append(data)
-            timeLs.append(presentTime)
-            
-            c+=1
-            loopEndtime=time.perf_counter()
-            presentTime=time.time()-s
-            
-    dyn1.setGoalPWM(0,id)
+    
+    for dir in dirs:
+        timeLs=[]
+        dirData=[]
+        while presentTime<=endTimeFr:
+            loopStartTime=time.perf_counter()
+            if(loopStartTime-loopEndtime>=timeStep):
+                u=signalFr(presentTime)[0]*dir
+                dyn1.setGoalPWM(u,id)
+                data=dyn1.readBulkSensors(id)
+                dirData.append(data)
+                timeLs.append(presentTime)
+                loopEndtime=time.perf_counter()
+                presentTime=time.time()-s    
+        dyn1.setGoalPWM(0,id)
+        dyn1.disableTorque(id)
+        data=np.array(dirData)
+        timeArr=np.array(timeLs).reshape((len(timeLs),1))
+        dataConv=data*motor.bulkConversion
+        dataConv=np.append(dataConv, timeArr, axis=1)#format[[omega,time],[w,t]...]
+        allData.append(post(dataConv))
     dyn1.disableTorque(id)
+    return allData
 
-    data=np.array(allData)
-    timeArr=np.array(timeLs).reshape((len(timeLs),1))
-    
-    
-    dataConv=data*motor.bulkConversion
-    
-    dataConv=np.append(dataConv, timeArr, axis=1)
+def stabletest(id,com):
+    dyn1=motor(com,4000000)
+    dyn1.connect([id])
+    dyn1.setVelocityControlMode(id)
+    dyn1.setHome(id)
+    dyn1.enableTorque(id)
+    allData=[]#list points[(friction Torque,Omega)....] for positive and negative directions 
 
-    np.save("dataFrConv.npy",dataConv)
+
+
+
+
+
     
-def post(name):
-    data=np.load(name)
+    
+def post(array,plot=False):
+    data=array
     omega=data[:,2]
     t=data[:,-1]
     newOmegaData=[]
@@ -81,13 +88,10 @@ def post(name):
     filteredNew=savgol_filter(newOmegaData[:,0], 5, 3)
     tn=tn.reshape((len(tn),1))
     filteredNew=filteredNew.reshape((len(filteredNew),1))
-    plt.plot(t,omega)
-    plt.plot(tn,filteredNew)
-    plt.show()
-
-
-    
-    
+    if(plot):
+        plt.plot(t,omega)
+        plt.plot(tn,filteredNew)
+        plt.show()
     return np.append(filteredNew,tn,axis=1)
 
     

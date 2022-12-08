@@ -28,8 +28,8 @@ guess=[9.25170038e+00 ,2.74492995e-04, 6.94938581e-03 ,2.68651742e+00,2.89755777
 bounds1=[(9*10**-4,7*10**-3),(2.65,2.8),(9*10**-2,7*10**-1)]
 guess1=[2.16827014e-03, 2.74042159e+00 ,2.95628771e-01]
 
-boundsFr=[(1500,5000),(10,500),(0.1,0.15),(0.12,0.3),(0.1,0.12),(0.0000001,0.001)]
-guessFr=[4.34449954e+03 ,6.71448705e+01 ,1.49767062e-01 ,1.67680509e-01,1.12444163e-01, 3.91864275e-04]
+boundsFr=[(85000,100000),(2500,4500),(0.05,0.07),(0.15,0.3),(0.02,0.17),(0.0000001,0.001)]
+guessFr=[8.79424207e+04, 3.28712928e+03, 6.71277751e-02 ,1.58548656e-01,1.50433937e-01, 6.18313380e-04]
 
 endTimeFr=10
 endTime=10
@@ -111,7 +111,7 @@ def funcFr(x,plot=False):
     individualOmega=f(ts)
     squareErrorArray=(individualOmega-experimentalOmega)**2
     if(plot):
-        plt.plot(individual.t,individual.y[0])
+        plt.plot(individual.t,individual.y[1])
         plt.plot(ts,experimentalOmega)
         plt.show()
     squareErrorTot= np.sum(squareErrorArray)
@@ -132,7 +132,7 @@ def minimizationFr():
 
     methods=['Nelder-Mead','Powell','L-BFGS-B','TNC','COBYLA','trust-constr']
     for method in methods:
-        s=minimize(funcFr,guessFr,method=method,bounds=bounds)
+        s=minimize(funcFr,guessFr,method=method,bounds=boundsFr)
         print(method)
         print(s.x)
         print(s.success)
@@ -141,14 +141,14 @@ def minimizationFr():
         print("################################")
 
 def evolveFr():
-    strats='randtobest1exp'
+    strats='best1bin'
     maxIter=50
     popSize=100
-    mutation=(0.5,1.5)
-    CR=0.5
+    mutation=(0.2,1.5)
+    CR=0.8
     disp=True
     polish=True
-    init='halton'
+    init='sobol'
     atol=0.0001
     s=differential_evolution(funcFr,strategy=strats,maxiter=maxIter,popsize=popSize,mutation=mutation,recombination=CR,disp=disp,polish=polish,bounds=boundsFr,init=init,atol=atol,updating='immediate',x0=guessFr)
     print(s.x)
@@ -181,8 +181,8 @@ if __name__ == '__main__':
     #evolve()
     #evolveFr()
     #print(func(guess,True))
-    #dual()
+    #dualFr()
     #SHFr()
     funcFr(guessFr,True)
     #SH()
-    #minimization()
+    #minimizationFr()
