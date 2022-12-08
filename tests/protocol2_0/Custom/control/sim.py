@@ -1,11 +1,10 @@
-import systemID.simulations.Model as Models
+import systemID.simulations.Model as Model
 import time
-import scipy.integrate as ODE
-from scipy.signal import resample
-from scipy.signal import resample_poly
+from scipy import interpolate
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+
 
 endTime=10
 
@@ -26,6 +25,12 @@ Vs=6.106*10**3
 r=(22.28/2)*10**-3
 
 
+guess=[8.71427011e+00 ,2.69348163e-04 ,1.30802543e-03 ,2.66204421e+00,3.94582734e-01]
+guessFr=[0.02548752 ,0.01175936, 0.00247281, 1.10968817 ,0.39299388 ,0.47506953]
+
+Ra,La,J,Kt,B=guess
+sigma0,sigma1,sigma2,Ts,Tc,Vs=guessFr
+
 def sign(n):
     return int(n>0) - int(n<0)
 
@@ -45,21 +50,17 @@ def sat(sig,threshold):
 def signal(t):# t in seconds [0 10]
     return (3*math.sin((math.pi/endTime)*t),0)
 
+constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
+motor=Model.motorFrictionModel(constants=constants,r=r,initialState=[0,0,0],inputFunction=signal)
 
-motor=Models.motorFrictionModel(Ra,La,J,Kt,B,sigma0,sigma1,sigma2,Ts,Tc,Vs,r,signal,[0,0,0])
-motor.sim()
 a=len(motor.y[0])
 
+f=interpolate.interp1d(motor.t, motor.y[0],fill_value=0,bounds_error=False)
+ts=np.arange(0,10,0.001)
 
-data=np.load("dataConv.npy")
-timeS=data[:,-1]
-omega=data[:,2]
-#plt.plot(timeS,omega)
-p=len(omega)
-newdata=resample(motor.y[0],p,motor.t,domain='time')
 
-plt.plot(newdata[1],newdata[0])
-#plt.plot(motor.t,motor.y[0])
+plt.plot(motor.t,motor.y[0])
+plt.plot(ts,f(ts))
 
 plt.show()
 

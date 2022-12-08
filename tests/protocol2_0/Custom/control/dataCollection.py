@@ -1,24 +1,20 @@
 import numpy as np
 import time
-import sys, os
-import math
+
 import matplotlib.pyplot as plt
 from motor.motor import *
 from scipy.signal import savgol_filter
-from scipy.interpolate import UnivariateSpline
+from systemID.optimize import signalFr
+from systemID.optimize import signal
+from systemID.optimize import endTime
+from systemID.optimize import endTimeFr
 
 
 timeStep=0.00 
-endTime=9
 
 
-def signal(t):# t in seconds [0 10]
-    return 3*math.sin((math.pi/endTime)*t)
 
-#position control
-
-
-id=2
+id=1
 def runTest(): 
     dyn1=motor('COM3',4000000)
     dyn1.connect([id])
@@ -35,10 +31,10 @@ def runTest():
     presentTime=0
     c=0
 
-    while presentTime<=endTime:
+    while presentTime<=endTimeFr:
         loopStartTime=time.perf_counter()
         if(loopStartTime-loopEndtime>=timeStep):
-            u=signal(presentTime)
+            u=signalFr(presentTime)[0]
             dyn1.setGoalPWM(u,id)
             data=dyn1.readBulkSensors(id)
             allData.append(data)
@@ -59,7 +55,7 @@ def runTest():
     
     dataConv=np.append(dataConv, timeArr, axis=1)
 
-    np.save("dataConv.npy",dataConv)
+    np.save("dataFrConv.npy",dataConv)
     
 def post(name):
     data=np.load(name)
@@ -97,5 +93,5 @@ def post(name):
     
 
 if __name__ == '__main__':  
-    a=post("dataConv.npy")
-    np.save("dataHFiltered.npy",a)
+    a=post("dataFrConv.npy")
+    np.save("dataFrFiltered.npy",a)

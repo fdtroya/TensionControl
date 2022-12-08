@@ -50,7 +50,7 @@ class motorModel(Model):
         iDotL=-self.Ke*omega-self.Ra*i+v
         return iDotL/self.La
 
-    def __init__(self, Ra,La,J,Kt,B,inputFunction,initialState):
+    def __init__(self, Ra,La,J,Kt,B,inputFunction,initialState,timeRange=[0,10]):
         self.Ra=Ra
         self.La=La
         self.J=J
@@ -58,7 +58,7 @@ class motorModel(Model):
         self.Kt=Kt
         self.B=B
         stateEq=[self.omegaDot,self.iDot]
-        super().__init__(stateEq,inputFunction,initialState)
+        super().__init__(stateEq,inputFunction,initialState,timerange=timeRange)
         self.sim()
     
     
@@ -66,7 +66,7 @@ class motorModel(Model):
 class motorFrictionModel(Model):
 
     def calcStribertEffect(self,omega):
-        g=self.Tc+(self.Ts-self.Tc)*math.e**-((omega/self.Vs)**2)
+        g=self.Tc+(self.Ts-self.Tc)*math.e**(-((omega/self.Vs)**2))
         return g/self.sigma0
 
     def calcZDot(self,stateVar,input):
@@ -78,8 +78,11 @@ class motorFrictionModel(Model):
     def omegaDot(self, stateVar, input):
         omega,i,z=stateVar
         v,Ft=input
+
         zDot=self.calcZDot(stateVar,input)
+
         Tfr=self.sigma0*z+self.sigma1*zDot+self.sigma2*omega
+
         omegaDotJ=-self.B*omega+i*self.Kt-Ft*self.r-Tfr
         return omegaDotJ/self.J
         
@@ -93,7 +96,7 @@ class motorFrictionModel(Model):
 
 
 
-    def __init__(self,r,inputFunction,initialState,Ra=None, La=None, J=None, Kt=None, B=None,sigma0=None,sigma1=None,sigma2=None,Ts=None,Tc=None,Vs=None,constants=None):
+    def __init__(self,r,inputFunction,initialState,timeRange=[0,10],Ra=None, La=None, J=None, Kt=None, B=None,sigma0=None,sigma1=None,sigma2=None,Ts=None,Tc=None,Vs=None,constants=None):
         if(constants!=None):
             Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs=constants
         self.Ra=Ra
@@ -114,7 +117,7 @@ class motorFrictionModel(Model):
         self.calculated=False
         self.used=False
         self.zDot=0
-        super().__init__(self.stateEq,inputFunction,initialState)
+        super().__init__(self.stateEq,inputFunction,initialState,timerange=timeRange)
         self.sim()
         
 

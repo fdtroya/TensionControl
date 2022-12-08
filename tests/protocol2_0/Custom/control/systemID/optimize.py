@@ -22,16 +22,17 @@ min=10**-6
 
 
 
-bounds=[(8,9.5),(0.26*10**-3,0.32*10**-3),(10**-5,2.5*10**-3),(2.65,2.7),(10**-3,6*10**-1)]
-bounds1=[(10**-4,4*10**-3),(2.65,2.7),(10**-2,7*10**-1)]
+bounds=[(8,9.5),(0.26*10**-3,0.32*10**-3),(9*10**-4,7*10**-3),(2.65,2.8),(9*10**-2,7*10**-1)]
+guess=[9.25170038e+00 ,2.74492995e-04, 6.94938581e-03 ,2.68651742e+00,2.89755777e-01]
 
-boundsFr=[(0.01,0.06),(0.0005,0.06),(0.0005,0.015),(0.6,1.2),(0.2,0.8),(0.4,0.8)]
+bounds1=[(9*10**-4,7*10**-3),(2.65,2.8),(9*10**-2,7*10**-1)]
+guess1=[2.16827014e-03, 2.74042159e+00 ,2.95628771e-01]
 
-guess=[8.71427011e+00 ,2.69348163e-04 ,1.30802543e-03 ,2.66204421e+00,3.94582734e-01]
-guess1=[1.54556096e-03 ,2.66925653e+00 ,4.03202592e-01]
-guessFr=[0.02548752 ,0.01175936, 0.00247281, 1.10968817 ,0.39299388 ,0.47506953]
+boundsFr=[(1500,5000),(10,500),(0.1,0.15),(0.12,0.3),(0.1,0.12),(0.0000001,0.001)]
+guessFr=[1.98906851e+03, 5.16298325e+01, 1.49493816e-01, 2.20830535e-01, 1.12889988e-01, 2.35835012e-04]
+
+endTimeFr=10
 endTime=10
-
 Ra,La,J,Kt,B=guess
 
 
@@ -39,19 +40,26 @@ experimentalOmegaFrf=interpolate.interp1d(outputDataFr[:,-1], outputDataFr[:,0],
 experimentalOmegaf=interpolate.interp1d(outputData[:,-1], outputData[:,0],fill_value=0,bounds_error=False)
 
 
+def signalFr(t):# t in seconds [0 10]
+    return (3*math.sin((math.pi/endTimeFr)*t),0) 
+
+
 def signal(t):# t in seconds [0 10]
-    return (3*math.sin((math.pi/endTime)*t),0) 
+    return (7*math.sin((math.pi/endTime)*t),0) 
 
 def func(x,plot=False):
     Ra,La,J,Kt,B=list(x)
     
     individual=Model.motorModel(Ra,La,J,Kt,B,initialState=[0,0],inputFunction=signal)
-    ts=individual.t
+    f=interpolate.interp1d(individual.t, individual.y[0],fill_value=0,bounds_error=False)
+    ts=np.arange(0,endTime,0.001)
     experimentalOmega=np.clip(experimentalOmegaf(ts),0,None)
-    squareErrorArray=(individual.y[0]-experimentalOmega)**2
-    #plt.plot(ts,individual.y[0])
-    #plt.plot(ts,experimentalOmega)
-    #plt.show()
+    individualOmega=f(ts)
+    squareErrorArray=(individualOmega-experimentalOmega)**2
+    if(plot):
+        plt.plot(individual.t,individual.y[0])
+        plt.plot(ts,experimentalOmega)
+        plt.show()
     squareErrorTot= np.sum(squareErrorArray)
     return squareErrorTot
 
@@ -69,45 +77,60 @@ def evolve():
     print(s.x)
     print(s.success)
     print(s.message)
-    print(func(s.x))
+    print(func(s.x,plot=True))
 def Hopping():
     maxIter=1000
     s=basinhopping(func,guess)
     print(s.x)
     print(s.success)
     print(s.message)
-    print(func(s.x))
+    print(func(s.x,plot=True))
 def SH():
     maxIter=5
     s=shgo(func,bounds=bounds,iters=maxIter,options={'disp':True})
     print(s.x)
     print(s.success)
     print(s.message)
-    print(func(s.x))  
+    print(func(s.x,plot=True))  
 def dual():
     maxIter=1000
     s=dual_annealing(func,bounds=bounds,maxiter=maxIter,x0=guess)
     print(s.x)
     print(s.success)
     print(s.message)
-    print(func(s.x))  
+    print(func(s.x,plot=True))  
 
-def funcFr(x):
+def funcFr(x,plot=False):
+    interest=3
     sigma0,sigma1,sigma2,Ts,Tc,Vs=list(x)
     constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
-    individual=Model.motorFrictionModel(constants=constants,r=r,initialState=[0,0,0],inputFunction=signal)
-    ts=individual.t
+    individual=Model.motorFrictionModel(constants=constants,r=r,initialState=[0,0,0],inputFunction=signalFr,timeRange=[0,interest])
+    f=interpolate.interp1d(individual.t, individual.y[0],fill_value=0,bounds_error=False)
+    ts=np.arange(0,interest,0.001)
     experimentalOmega=np.clip(experimentalOmegaFrf(ts),0,None)
-    squareErrorArray=(individual.y[0]-experimentalOmega)**2
-    plt.plot(ts,individual.y[0])
-    plt.plot(ts,experimentalOmega)
-    plt.show()
+    individualOmega=f(ts)
+    squareErrorArray=(individualOmega-experimentalOmega)**2
+    if(plot):
+        plt.plot(individual.t,individual.y[0])
+        plt.plot(ts,experimentalOmega)
+        plt.show()
     squareErrorTot= np.sum(squareErrorArray)
     return squareErrorTot
+def minimization():
+    methods=['Nelder-Mead','Powell','L-BFGS-B','TNC','COBYLA','trust-constr']
+    for method in methods:
+        s=minimize(func,guess1,method=method,bounds=bounds1)
+        print(method)
+        print(s.x)
+        print(s.success)
+        print(s.message)
+        print(func(s.x,True))
+        print("################################")
+
 
 def minimizationFr():
 
-    methods=['Nelder-Mead','Powell','L-BFGS-B','TNC','COBYLA','trust-constr',]
+    methods=['Nelder-Mead','Powell','L-BFGS-B','TNC','COBYLA','trust-constr']
     for method in methods:
         s=minimize(funcFr,guessFr,method=method,bounds=bounds)
         print(method)
@@ -118,11 +141,11 @@ def minimizationFr():
         print("################################")
 
 def evolveFr():
-    strats='best1exp'
-    maxIter=300
+    strats='randtobest1exp'
+    maxIter=50
     popSize=100
     mutation=(0.5,1.5)
-    CR=0.25
+    CR=0.5
     disp=True
     polish=True
     init='halton'
@@ -131,21 +154,21 @@ def evolveFr():
     print(s.x)
     print(s.success)
     print(s.message)
-    print(funcFr(s.x))
+    print(funcFr(s.x,True))
 def SHFr():
     maxIter=4
     s=shgo(funcFr,bounds=boundsFr,iters=maxIter,options={'disp':True})
     print(s.x)
     print(s.success)
     print(s.message)
-    print(funcFr(s.x))  
+    print(funcFr(s.x,True))  
 def dualFr():
     maxIter=1000
     s=dual_annealing(funcFr,bounds=boundsFr,maxiter=maxIter,x0=guessFr)
     print(s.x)
     print(s.success)
     print(s.message)
-    print(funcFr(s.x)) 
+    print(funcFr(s.x,True)) 
 def HoppingFr():
     maxIter=1000
     s=basinhopping(funcFr,guessFr)
@@ -153,9 +176,13 @@ def HoppingFr():
     print(s.success)
     print(s.message)
     print(funcFr(s.x))
-#evolve()
-#evolveFr()
-#func(guess)
-#dualFr()
-#SHFr()
-funcFr(guessFr)
+
+if __name__ == '__main__':  
+    #evolve()
+    evolveFr()
+    #print(func(guess,True))
+    #dual()
+    #SHFr()
+    #funcFr(guessFr,True)
+    #SH()
+    #minimization()
