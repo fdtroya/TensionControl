@@ -59,26 +59,27 @@ class motor(object):
         self.BAUDRATE= BAUDRATE
         self.comLock=Lock()
         self.groupBulkRead = GroupBulkRead(self.portHandler, self.packetHandler)
+        self.connected=False
         
       
         
     def connect(self,IDS):
+        if(not self.connected):
 
-        # Open port
-        if self.portHandler.openPort():
-            print("Succeeded to open the port")
-        else:
-            raise Exception("Failed to open the port")
+            # Open port
+            if self.portHandler.openPort():
+                print("Succeeded to open the port")
+            else:
+                raise Exception("Failed to open the port")
 
-        # Set port baudrate
-        if self.portHandler.setBaudRate(self.BAUDRATE):
-            print("Succeeded to change the baudrate")
-            for id in IDS:
-                self.disableTorque(id)
-                self.setHome(id)
-           
-        else:
-            raise Exception("Failed to change the baudrate")
+            # Set port baudrate
+            if self.portHandler.setBaudRate(self.BAUDRATE):
+                print("Succeeded to change the baudrate")
+                for id in IDS:
+                    self.disableTorque(id)
+                self.connected=True
+            else:
+                raise Exception("Failed to change the baudrate")
         
         
 
@@ -88,7 +89,23 @@ class motor(object):
         # Close port
         self.portHandler.closePort()
         
-        
+    def homming(self,DXL_ID,direction=-1):
+        threshold=100
+        self.disableTorque(DXL_ID)
+        self.setVelocityControlMode(DXL_ID)
+        self.enableTorque(DXL_ID)
+        self.setGoalVelocity(0.5*direction,DXL_ID)
+        time.sleep(0.25)
+        current=0
+        while(abs(current)<=threshold):
+            current=self.getPresentCurrent(DXL_ID)
+            
+        self.disableTorque(DXL_ID)
+        self.setGoalVelocity(0,DXL_ID)
+        self.setHome(DXL_ID)
+
+
+
 
     def writeAddressInner(self,address,value,byteSize,DXL_ID):
         self.comLock.acquire()
@@ -201,6 +218,8 @@ class motor(object):
         self.setControlMode(CMD_CURRENT_CONTROL_MODE,DXL_ID)
     def setPositionControlMode(self,DXL_ID):
         self.setControlMode(CMD_POSITION_CONTROL_MODE,DXL_ID)
+    def setExtendedPositionControlMode(self,DXL_ID):
+        self.setControlMode(CMD_EXT_POSITION_CONTROL_MODE,DXL_ID)
     def setVelocityControlMode(self,DXL_ID):
         self.setControlMode(CMD_VELOCITY_CONTROL_MODE,DXL_ID)
     def setPWMControlMode(self,DXL_ID):
@@ -213,6 +232,9 @@ class motor(object):
     def setGoalPositionAngle(self,positionAngle,DXL_ID):
         value=motor.angleToNumber(positionAngle)
         self.writeAddress(ADDR_PRO_GOAL_POSITION,value,LEN_PRO_GOAL_POSITION,DXL_ID)
+    def setGoalVelocity(self,omega,DXL_ID):
+        value=motor.radSToNumber(omega)
+        self.writeAddress(ADDR_PRO_GOAL_VELOCITY,value,LEN_PRO_GOAL_VELOCITY,DXL_ID)
     def setGoalLinearPosition(self,positionInmm,DXL_ID):
         self.setGoalPositionAngle(motor.linearToAngle(positionInmm),DXL_ID)
 

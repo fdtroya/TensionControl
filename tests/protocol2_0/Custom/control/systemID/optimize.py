@@ -39,6 +39,9 @@ Ra,La,J,Kt,B=guess
 experimentalOmegaFrf=interpolate.interp1d(outputDataFr[:,-1], outputDataFr[:,0],fill_value=0,bounds_error=False)
 experimentalOmegaf=interpolate.interp1d(outputData[:,-1], outputData[:,0],fill_value=0,bounds_error=False)
 
+def sign(n):
+    return int(n>0) - int(n<0)
+
 
 def signalFr(t):# t in seconds [0 10]
     return (3*math.sin((math.pi/endTimeFr)*t),0) 
@@ -62,7 +65,31 @@ def func(x,plot=False):
         plt.show()
     squareErrorTot= np.sum(squareErrorArray)
     return squareErrorTot
-
+def funcFr(x,plot=False):
+    interest=10
+    sigma0,sigma1,sigma2,Ts,Tc,Vs=list(x)
+    constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
+    individual=Model.motorFrictionModel(constants=constants,r=r,initialState=[0,0,0],inputFunction=signalFr,timeRange=[0,interest])
+    f=interpolate.interp1d(individual.t, individual.y[0],fill_value=0,bounds_error=False)
+    ts=np.arange(0,interest,0.001)
+    experimentalOmega=np.clip(experimentalOmegaFrf(ts),0,None)
+    individualOmega=f(ts)
+    squareErrorArray=(individualOmega-experimentalOmega)**2
+    if(plot):
+        plt.plot(individual.t,individual.y[1])
+        plt.plot(ts,experimentalOmega)
+        plt.show()
+    squareErrorTot= np.sum(squareErrorArray)
+    return squareErrorTot
+def funcSt(x,plot=False):
+    sigma2,Ts,Tc,Vs=x
+    omegas=[]
+    TfrLs=[]
+    for omega in omegas:
+        Tfr=(Tc+(Ts-Tc)*math.e**-(omega/Vs)**2) *sign(omega)+sigma2*omega
+        TfrLs.append(Tfr)
+    TfrArr=np.array(TfrLs)
+    
 def evolve():
     strats='best1exp'
     maxIter=300
@@ -100,22 +127,7 @@ def dual():
     print(s.message)
     print(func(s.x,plot=True))  
 
-def funcFr(x,plot=False):
-    interest=10
-    sigma0,sigma1,sigma2,Ts,Tc,Vs=list(x)
-    constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
-    individual=Model.motorFrictionModel(constants=constants,r=r,initialState=[0,0,0],inputFunction=signalFr,timeRange=[0,interest])
-    f=interpolate.interp1d(individual.t, individual.y[0],fill_value=0,bounds_error=False)
-    ts=np.arange(0,interest,0.001)
-    experimentalOmega=np.clip(experimentalOmegaFrf(ts),0,None)
-    individualOmega=f(ts)
-    squareErrorArray=(individualOmega-experimentalOmega)**2
-    if(plot):
-        plt.plot(individual.t,individual.y[1])
-        plt.plot(ts,experimentalOmega)
-        plt.show()
-    squareErrorTot= np.sum(squareErrorArray)
-    return squareErrorTot
+
 def minimization():
     methods=['Nelder-Mead','Powell','L-BFGS-B','TNC','COBYLA','trust-constr']
     for method in methods:

@@ -31,8 +31,7 @@ guessFr=[0.02548752 ,0.01175936, 0.00247281, 1.10968817 ,0.39299388 ,0.47506953]
 Ra,La,J,Kt,B=guess
 sigma0,sigma1,sigma2,Ts,Tc,Vs=guessFr
 
-def sign(n):
-    return int(n>0) - int(n<0)
+
 
 
 
