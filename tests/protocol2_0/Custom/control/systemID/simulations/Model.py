@@ -2,6 +2,9 @@ import numpy as np
 import math
 import scipy.integrate as ODE
 
+    
+def sign(n):
+    return int(n>0) - int(n<0)
 class Model(object):
 
 
@@ -117,6 +120,49 @@ class motorFrictionModel(Model):
         self.calculated=False
         self.used=False
         self.zDot=0
+        super().__init__(self.stateEq,inputFunction,initialState,timerange=timeRange)
+        self.sim()
+        
+
+class motorStrictionModel(Model):
+
+
+
+
+    def omegaDot(self, stateVar, input):
+        omega,i=stateVar
+        v,Ft=input
+
+        Tfr=(self.Tc+(self.Ts-self.Tc)*math.e**(-((omega/self.Vs)**2)))*sign(omega)+self.sigma2*omega
+
+        omegaDotJ=-self.B*omega+i*self.Kt-Ft*self.r-Tfr
+        return omegaDotJ/self.J
+        
+    def iDot(self,stateVar,input):
+        v,Ft=input
+        omega,i=stateVar
+        iDotL=-self.Ke*omega-self.Ra*i+v
+        return iDotL/self.La
+        
+
+    def __init__(self,r,inputFunction,initialState,timeRange=[0,10],Ra=None, La=None, J=None, Kt=None, B=None,sigma2=None,Ts=None,Tc=None,Vs=None,constants=None):
+        if(constants!=None):
+            Ra, La, J, Kt, B,sigma2,Ts,Tc,Vs=constants
+        self.Ra=Ra
+        self.La=La
+        self.J=J
+        self.Ke=Kt
+        self.Kt=Kt
+        self.B=B
+        self.Ts=Ts
+        self.Tc=Tc
+        self.Vs=Vs
+        self.r=r
+        self.sigma2=sigma2
+        self.constants=[Ra, La, J, Kt, B,sigma2,Ts,Tc,Vs]
+        self.stateEq=[self.omegaDot,self.iDot]
+        self.calculated=False
+        self.used=False
         super().__init__(self.stateEq,inputFunction,initialState,timerange=timeRange)
         self.sim()
         
