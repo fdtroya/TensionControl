@@ -1,6 +1,7 @@
 from motor.motor import motor
 from motor.loadCell import sensor
 import time
+import math
 import threading
 
 
@@ -11,32 +12,67 @@ def sign(n):
 
 class myThreadloadCell(threading.Thread):
 
-    def __init__(self,sensor,start_event,end_event,force):
+    def __init__(self,sensor,force,freq=60):
         threading.Thread.__init__(self)
         self.sensor=sensor
-        self.start_event = start_event
-        self.end_event = end_event
+        self.h=1/freq
         self.force=force
     def run(self):
         while True:
-            self.start_event.wait()
-            self.start_event.clear()
-            self.force[0]=self.sensor.readSensors()
-            self.end_event.set()
+            time_before_loop = time.perf_counter()
+            if time_before_loop - time_after_loop >= self.h:
+                self.force[0]=self.sensor.readSensors()
+                time_after_loop = time.perf_counter()
+            
 
-class myFrictionEstimator(threading.Thread):
-    def __init__(self, group: None = ..., target: Callable[..., object] | None = ..., name: str | None = ..., args: Iterable[Any] = ..., kwargs: Mapping[str, Any] | None = ..., *, daemon: bool | None = ...) -> None:
-        super().__init__(group, target, name, args, kwargs, daemon=daemon)
-        self.Tfr=0
-        self.omega=0
 
-    def getTfr(self):
-        return self.Tfr()
-    def setOmega(self,omega):
-        self.omega=omega
+class myThreadFrictionEstimator(threading.Thread):
+    def __init__(self,constants,Tfr,Omega,h=0.0001):
+        threading.Thread.__init__(self)
+        self.Tfr=Tfr
+        self.omega=Omega
+        self.z=0
+        self.h=h
+        sigma0,sigma1,sigma2,Ts,Tc,Vs=constants
+        self.sigma0=sigma0
+        self.sigma1=sigma1
+        self.sigma2=sigma2
+        self.Ts=Ts
+        self.Tc=Tc
+        self.Vs=Vs
+        self.frequency=1/h
+
+    def loop(self):
+        omega=self.omega[0]
+        g=self.Tc+(self.Ts-self.Tc)*math.e**(-((omega/self.Vs)**2))
+        g=g/self.sigma0
+        a=abs(omega)/g
+        b=omega
+        x=-a*self.h
+        self.z=self.z*math.e**(x)+((math.e**(x)-1)/math.log(math.e**a))*b
+        self.calcTfr() 
         
+    def calcTfr(self):
+        omega=self.omega[0]
+        g=self.Tc+(self.Ts-self.Tc)*math.e**(-((omega/self.Vs)**2))
+        g=g/self.sigma0
+        zDot=omega-abs(omega)/g
+        Tfr=self.sigma0*self.z+self.sigma1*zDot+self.sigma2*omega
+        self.Tfr[0]=Tfr
 
-class loop(object):
+    def run(self):
+        time_after_loop = time.perf_counter()
+        while True:
+            time_before_loop = time.perf_counter()
+            if time_before_loop - time_after_loop >= self.h:
+                self.loop()
+                time_after_loop = time.perf_counter()
+
+
+   
+
+
+class ControlLoop(object):
 
 
     def __init__(self,motorController,sensor,frequency,constants,gains):
@@ -46,26 +82,36 @@ class loop(object):
         self.constants=constants
         self.gains=gains
         self.log=[]
+        
+        self.force=[0]
+        self.omega=[0]
+        self.Tfr=[0]
+
+        loadCellthread=myThreadloadCell(self.sensor,self.force)
+        frictionEstimator=myThreadFrictionEstimator(self.constants,self.Tfr,self.omega,0.0001)
+        loadCellthread.start()
+        frictionEstimator.start()
 
     def Tm_d(self,omega,Tfr,Ftd):
-        return self.constants[0]*omega*353.5+((Ftd*self.constants[5])/353.5)+(Tfr)
+        return self.constants[0]*omega+((Ftd*self.constants[5]))+(Tfr)
     
     def Id(self,Tm):
         return Tm/self.constants[1]
-    
-    def Tfr(self,omega):
-        return 
+
+
+    def loop(self):
+        data=self.motorController.readBulkSensors()*motor.bulkConversion
+        self.log.append(data)
+        omega=data[2]
+        theta=data[3]
+        i=data[1]/1000
 
 
     id=1
     def startLoop(self):
 
-        loadCellStartEvent=threading.Event()
-        loadCellEndEvent=threading.Event()
-        force=[0]
-        loadCellthread=myThreadloadCell(self.sensor,loadCellStartEvent,loadCellEndEvent,force)
-        loadCellthread.start()
-        loadCellStartEvent.set()
+
+
 
         self.motorController.connect(id)
         self.motorController.homming(id)
@@ -78,12 +124,6 @@ class loop(object):
         Tfr=0
         
         while True:
-            data=self.motorController.readBulkSensors()*motor.bulkConversion
-            self.log.append(data)
-            omega=data[2]
-            theta=data[3]
-            i=data[1]/1000
-
             Tm=self.Tm_d(omega,Tfr,Ftd)
             Id=self.Id(Tm)
             pos=theta*(14/360)*5
@@ -91,24 +131,7 @@ class loop(object):
             if(((pos>=52)and Id>0) or ((pos<=0)and Id<0)):
                 Id=0
                 
-            
-            
-            print("Corriente " +str(Id))
-            print("pos "+str(pos))
-                
             self.motorController.setGoalCurrent(Id*1000)
-
-
-
-
-            loadCellEndEvent.wait()
-            loadCellEndEvent.clear()
-
-            Ft=force[0][0]*9.81
-
-            
-
-            loadCellStartEvent.set()
 
             Tfr=self.Tfr(omega)
             

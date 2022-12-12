@@ -123,47 +123,64 @@ class motorFrictionModel(Model):
         super().__init__(self.stateEq,inputFunction,initialState,timerange=timeRange)
         self.sim()
         
+class FrictionEstimatorModel(Model):
 
-class motorStrictionModel(Model):
+    def signal(self,t):
+        return self.voltage
 
+    def calcStribertEffect(self,omega):
+        g=self.Tc+(self.Ts-self.Tc)*math.e**(-((omega/self.Vs)**2))
+        return g/self.sigma0
 
-
+    def calcZDot(self,stateVar,input):
+        omega,i,z=stateVar
+        g=self.calcStribertEffect(omega)
+        zDot=omega-(abs(omega)/g)*z
+        return zDot
 
     def omegaDot(self, stateVar, input):
-        omega,i=stateVar
+        omega,i,z=stateVar
         v,Ft=input
 
-        Tfr=(self.Tc+(self.Ts-self.Tc)*math.e**(-((omega/self.Vs)**2)))*sign(omega)+self.sigma2*omega
+        zDot=self.calcZDot(stateVar,input)
+
+        Tfr=self.sigma0*z+self.sigma1*zDot+self.sigma2*omega
 
         omegaDotJ=-self.B*omega+i*self.Kt-Ft*self.r-Tfr
         return omegaDotJ/self.J
         
     def iDot(self,stateVar,input):
         v,Ft=input
-        omega,i=stateVar
+        omega,i,z=stateVar
         iDotL=-self.Ke*omega-self.Ra*i+v
         return iDotL/self.La
         
 
-    def __init__(self,r,inputFunction,initialState,timeRange=[0,10],Ra=None, La=None, J=None, Kt=None, B=None,sigma2=None,Ts=None,Tc=None,Vs=None,constants=None):
+
+
+
+    def __init__(self,r,inputFunction,initialState,timeRange=[0,10],Ra=None, La=None, J=None, Kt=None, B=None,sigma0=None,sigma1=None,sigma2=None,Ts=None,Tc=None,Vs=None,constants=None,voltage=0):
         if(constants!=None):
-            Ra, La, J, Kt, B,sigma2,Ts,Tc,Vs=constants
+            Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs=constants
         self.Ra=Ra
         self.La=La
         self.J=J
         self.Ke=Kt
         self.Kt=Kt
         self.B=B
+        self.stateEq=[self.omegaDot,self.iDot,self.calcZDot]
+        self.sigma0=sigma0
+        self.sigma1=sigma1
+        self.sigma2=sigma2
         self.Ts=Ts
         self.Tc=Tc
         self.Vs=Vs
         self.r=r
-        self.sigma2=sigma2
-        self.constants=[Ra, La, J, Kt, B,sigma2,Ts,Tc,Vs]
-        self.stateEq=[self.omegaDot,self.iDot]
-        self.calculated=False
+        self.constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
+        self.voltage=voltage
         self.used=False
         super().__init__(self.stateEq,inputFunction,initialState,timerange=timeRange)
         self.sim()
         
+
 

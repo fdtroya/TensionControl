@@ -27,8 +27,8 @@ r=(22.28/2)*10**-3
 
 
 
-boundsFr=[(9000,15000),(70,500),(0.03,0.2),(0.11,0.18),(0.03,0.11),(0.002,0.1)]
-guessFr=[9288.98500623 ,  97.33555491,1.54433544e-01,1.13292172e-01,1.09904280e-01,0.03]#9.36241349e-02]
+boundsFr=[(9000,15000),(70,500),(0.03,0.2),(0.09,0.18),(0.01,0.14),(0.002,0.15)]
+guessFr=[1.13844704e+04,2.60291157e+02,9.08291252e-02,9.22317171e-02,1.39540214e-01,8.72559485e-02]#9.36241349e-02]
 
 boundsFr1=[(9000,15000),(70,500)]
 guessFr1=[9288.98500623 ,  97.33555491]
@@ -68,6 +68,7 @@ def funcFr(x,plot=False):
     sigma0,sigma1,sigma2,Ts,Tc,Vs=list(x)
     constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
     individual=Model.motorFrictionModel(constants=constants,r=r,initialState=[0,0,0],inputFunction=signalFr,timeRange=[0,interest])
+
     f=interpolate.interp1d(individual.t, individual.y[0],fill_value=0,bounds_error=False)
     ts=np.arange(0,interest,0.001)
     experimentalOmega=np.clip(experimentalOmegaFrf(ts),0,None)
