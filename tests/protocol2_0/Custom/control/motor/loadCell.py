@@ -7,8 +7,6 @@ class sensor:
 
     def __init__(self,com,baud):
         ser=serial.Serial(port=com,baudrate=baud,bytesize=serial.EIGHTBITS,parity=serial.PARITY_NONE,stopbits=serial.STOPBITS_ONE)
-
-  
         self.ser=ser
 
     
@@ -22,20 +20,21 @@ class sensor:
             number=int(element[0])-1
             pred=element[5:13]
             data=float(pred)
-            if(abs(data)<=0.002):
+            if(abs(data)<=0.01):
                 data=0
             final[number]=data
+        print(final)
 
         return final
 
 
 if __name__ == '__main__':  
-    s=sensor('COM4',38400)
+    s=sensor('COM5',38400)
     start=time.time()
     current=time.time()
     c=0
     while(current-start)<10:
-        s.readSensors()
+        print(s.readSensors())
         c+=1
         current=time.time()
     print("###############################")

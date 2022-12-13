@@ -90,7 +90,7 @@ class motor(object):
         self.portHandler.closePort()
         
     def homming(self,DXL_ID,direction=-1):
-        threshold=100
+        threshold=85
         self.disableTorque(DXL_ID)
         self.setVelocityControlMode(DXL_ID)
         self.enableTorque(DXL_ID)
@@ -99,9 +99,10 @@ class motor(object):
         current=0
         while(abs(current)<=threshold):
             current=self.getPresentCurrent(DXL_ID)
-            
+        print("###########HOME SET###########")
         self.disableTorque(DXL_ID)
         self.setGoalVelocity(0,DXL_ID)
+        time.sleep(1)
         self.setHome(DXL_ID)
 
 

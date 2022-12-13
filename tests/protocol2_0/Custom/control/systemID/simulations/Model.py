@@ -116,6 +116,7 @@ class motorFrictionModel(Model):
         self.Tc=Tc
         self.Vs=Vs
         self.r=r
+        
         self.constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
         self.calculated=False
         self.used=False

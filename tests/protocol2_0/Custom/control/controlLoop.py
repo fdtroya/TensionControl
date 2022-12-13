@@ -3,34 +3,42 @@ from motor.loadCell import sensor
 import time
 import math
 import threading
-
-
-
+import json
+from multiprocessing import Process
+from multiprocessing import Manager
+import scipy.integrate as scI
+from scipy.optimize import root
 
 def sign(n):
     return int(n>0) - int(n<0)
 
-class myThreadloadCell(threading.Thread):
+class myThreadloadCell(object):
 
     def __init__(self,sensor,force,freq=60):
-        threading.Thread.__init__(self)
+        #threading.Thread.__init__(self)
         self.sensor=sensor
         self.h=1/freq
         self.force=force
     def run(self):
+        time_after_loop = time.perf_counter()
         while True:
             time_before_loop = time.perf_counter()
             if time_before_loop - time_after_loop >= self.h:
-                self.force[0]=self.sensor.readSensors()
+                self.force[0]=self.sensor.readSensors()[0]
                 time_after_loop = time.perf_counter()
+    def start(self):
+        p=Process(target=self.run)
+        p.start()
             
 
 
-class myThreadFrictionEstimator(threading.Thread):
-    def __init__(self,constants,Tfr,Omega,h=0.0001):
-        threading.Thread.__init__(self)
-        self.Tfr=Tfr
-        self.omega=Omega
+class myThreadFrictionEstimator(object):
+
+
+
+    def __init__(self,constants,omegaM,TfrM,h=0.0001):
+        #threading.Thread.__init__(self)
+
         self.z=0
         self.h=h
         sigma0,sigma1,sigma2,Ts,Tc,Vs=constants
@@ -41,32 +49,49 @@ class myThreadFrictionEstimator(threading.Thread):
         self.Tc=Tc
         self.Vs=Vs
         self.frequency=1/h
-
-    def loop(self):
-        omega=self.omega[0]
-        g=self.Tc+(self.Ts-self.Tc)*math.e**(-((omega/self.Vs)**2))
-        g=g/self.sigma0
-        a=abs(omega)/g
-        b=omega
-        x=-a*self.h
-        self.z=self.z*math.e**(x)+((math.e**(x)-1)/math.log(math.e**a))*b
-        self.calcTfr() 
+        self.omegaM=omegaM
+        self.TfrM=TfrM
         
-    def calcTfr(self):
-        omega=self.omega[0]
+
+    def calcZdot(self,t,z):
+        omega=self.omegaM[0]
         g=self.Tc+(self.Ts-self.Tc)*math.e**(-((omega/self.Vs)**2))
         g=g/self.sigma0
-        zDot=omega-abs(omega)/g
-        Tfr=self.sigma0*self.z+self.sigma1*zDot+self.sigma2*omega
-        self.Tfr[0]=Tfr
+        zDot=omega-(abs(omega)/g)*z
+        return zDot
 
-    def run(self):
+    def CN(self,guess):
+        return -guess+self.z+0.5*self.h*(self.calcZdot(0,self.z)+self.calcZdot(0,guess))
+
+    def nextStep(self,omega):
+        if(omega!=0):
+            g=self.Tc+(self.Ts-self.Tc)*math.e**(-((omega/self.Vs)**2))
+            g=g/self.sigma0
+            a=abs(omega)/g
+            b=omega
+            x=-a*self.h
+            z=(math.e**x)*self.z+((math.e**x)-1)/(math.log(math.e**a))*b
+            return z 
+        else:
+            return self.z
+
+        
+
+    def run(self,omegaM,TfrM):
         time_after_loop = time.perf_counter()
         while True:
             time_before_loop = time.perf_counter()
             if time_before_loop - time_after_loop >= self.h:
-                self.loop()
+                omega=omegaM[0]
+                self.z=self.nextStep(omega)
+                Tfr=self.sigma0*self.z+self.sigma1*self.calcZdot(0,self.z)+self.sigma2*omega
+                #print(time_before_loop - time_after_loop)
+                TfrM[0]=Tfr
                 time_after_loop = time.perf_counter()
+
+    def start(self):
+        p=Process(target=self.run,args=(self.omegaM,self.TfrM))
+        p.start()
 
 
    
@@ -75,91 +100,122 @@ class myThreadFrictionEstimator(threading.Thread):
 class ControlLoop(object):
 
 
-    def __init__(self,motorController,sensor,frequency,constants,gains):
+    def __init__(self,motorController,sensor,frequency,constants,omegaM,TfrM,FtM,r=(22.28/2)*10**-3,motorId=1,motordirection=1):
+
+        Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs=constants
+
+        self.Kt=Kt
+        self.B=B
+        self.sigma0=sigma0
+        self.sigma1=sigma1
+        self.sigma2=sigma2
+        self.Ts=Ts
+        self.Tc=Tc
+        self.Vs=Vs 
+
         self.motorController=motorController
+        self.motorID=motorId
+        self.motorDir=motordirection
         self.sensor=sensor
         self.freq=frequency
+        self.h=1/frequency
         self.constants=constants
-        self.gains=gains
-        self.log=[]
         
-        self.force=[0]
-        self.omega=[0]
-        self.Tfr=[0]
+        self.log=[]
+        self.Tfd=0
 
-        loadCellthread=myThreadloadCell(self.sensor,self.force)
-        frictionEstimator=myThreadFrictionEstimator(self.constants,self.Tfr,self.omega,0.0001)
-        loadCellthread.start()
-        frictionEstimator.start()
+        self.omegaM=omegaM
+        self.TfrM=TfrM
+        self.FtM=FtM
 
-    def Tm_d(self,omega,Tfr,Ftd):
-        return self.constants[0]*omega+((Ftd*self.constants[5]))+(Tfr)
+        frConstants=[sigma0,sigma1,sigma2,Ts,Tc,Vs]
+        self.r=r
+        #loadCellthread=myThreadloadCell(self.sensor,self.force)
+        self.frictionEstimator=myThreadFrictionEstimator(frConstants,omegaM,TfrM,1e-5)
+        self.frictionEstimator.start()
+        #loadCellthread.start()
+        
+
+    def Tm_d(self,Tfr,Ftd):
+        return (Ftd*self.r)+(Tfr)
     
     def Id(self,Tm):
-        return Tm/self.constants[1]
+        return Tm/self.Kt
 
 
     def loop(self):
-        data=self.motorController.readBulkSensors()*motor.bulkConversion
+        data=self.motorController.readBulkSensors(self.motorID)*motor.bulkConversion
         self.log.append(data)
         omega=data[2]
         theta=data[3]
         i=data[1]/1000
+        self.omegaM[0]=omega
 
-
-    id=1
-    def startLoop(self):
-
-
-
-
-        self.motorController.connect(id)
-        self.motorController.homming(id)
-        self.motorController.setCurrentControlMode(id)
-        self.motorController.enableTorque(id)
-        
-        Ftd=0*9.81
-        omega=0
-        theta=0
         Tfr=0
+        f=self.TfrM[0]
+        if(f>1):
+            print(f)
         
+        i_d=self.Id(self.Tm_d(Tfr,self.Tfd))
+        
+
+
+        pos=theta*(14/360)*5
+        
+        
+        if(((pos>=52)and i_d>0) or ((pos<=0)and i_d<0)):
+            i_d=0
+
+        if(abs(Tfr)<=1 or i_d==0):
+            self.motorController.setGoalCurrent(i_d*1000,self.motorID)
+
+    
+    def startLoop(self):
+        self.motorController.connect([self.motorID])
+        self.motorController.homming(self.motorID)
+        self.motorController.setCurrentControlMode(self.motorID)
+        self.motorController.enableTorque(self.motorID)
+        
+    def run(self):
+        self.startLoop()
+        time_after_loop = time.perf_counter()
         while True:
-            Tm=self.Tm_d(omega,Tfr,Ftd)
-            Id=self.Id(Tm)
-            pos=theta*(14/360)*5
+            time_before_loop = time.perf_counter()
+            if time_before_loop - time_after_loop >= self.h:
+                self.loop()
+                time_after_loop = time.perf_counter()
 
-            if(((pos>=52)and Id>0) or ((pos<=0)and Id<0)):
-                Id=0
-                
-            self.motorController.setGoalCurrent(Id*1000)
-
-            Tfr=self.Tfr(omega)
-            
-
-             #   loopEndtime=time.perf_counter()
-        
+    
 
 
 
+if __name__ == '__main__':
+
+    constants=json.load(open("models.json"))
+    Ra=constants["motorFr_1"]["Ra"]
+    La=constants["motorFr_1"]["La"]
+    J=constants["motorFr_1"]["J"]
+    Kt=constants["motorFr_1"]["Kt"]
+    B=constants["motorFr_1"]["B"]
+    sigma0=constants["motorFr_1"]["sigma0"]
+    sigma1=constants["motorFr_1"]["sigma1"]
+    sigma2=constants["motorFr_1"]["sigma2"]
+    Ts=constants["motorFr_1"]["Ts"]
+    Tc=constants["motorFr_1"]["Tc"]
+    Vs=constants["motorFr_1"]["Vs"]
+    constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
+
+    omegaM = Manager().list([0])
+    TfrM = Manager().list([0])
+    FtM=Manager().list([0])
 
 
-
-r1=(22.28/2)*10**-3
-Ra=8.1
-La=0.28*10**-3
-
-J=5.41*10**-8
-Ke=0.0102469
-Kt=10.2*10**-3 
-
-B=3.121*10**-7
-constants=[B,Kt,Ke,La,Ra,r1]
-gains=[]
-sens=sensor('COM5',38400)
-motors=motor(1,"COM3",4000000)
-freq=60
+    sens=5#sensor('COM5',38400)
 
 
-l=loop(motors,sens,freq,constants,gains)
+    motors=motor("COM3",4000000)
+    freq=1000
 
-l.startLoop()
+
+    l=ControlLoop(motors,sens,freq,constants,omegaM,TfrM,FtM)
+    l.run()

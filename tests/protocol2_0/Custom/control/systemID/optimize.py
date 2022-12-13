@@ -75,8 +75,8 @@ def funcFr(x,plot=False):
     individualOmega=f(ts)
     squareErrorArray=(individualOmega-experimentalOmega)**2
     if(plot):
-        plt.plot(individual.t,individual.y[0])
-        plt.plot(ts,experimentalOmega)
+        plt.plot(individual.t,individual.y[2])
+        #plt.plot(ts,experimentalOmega)
         plt.show()
     squareErrorTot= np.sum(squareErrorArray)
     return squareErrorTot
@@ -165,6 +165,6 @@ def SHFrSS():
 
 
 if __name__ == '__main__':  
-    #print(funcFr(guessFr,True))
+    print(funcFr(guessFr,True))
     #print(funcSt(guessSS,True))
-    evolveFr()
+    #evolveFr()
