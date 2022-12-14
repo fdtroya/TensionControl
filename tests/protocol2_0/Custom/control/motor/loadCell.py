@@ -23,7 +23,7 @@ class sensor:
             if(abs(data)<=0.01):
                 data=0
             final[number]=data
-        print(final)
+        
 
         return final
 

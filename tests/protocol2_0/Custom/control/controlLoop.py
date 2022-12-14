@@ -8,37 +8,35 @@ from multiprocessing import Process
 from multiprocessing import Manager
 import scipy.integrate as scI
 from scipy.optimize import root
+from simple_pid import PID
 
 def sign(n):
     return int(n>0) - int(n<0)
 
 class myThreadloadCell(object):
 
-    def __init__(self,sensor,force,freq=60):
-        #threading.Thread.__init__(self)
-        self.sensor=sensor
+    def __init__(self,sensorCFG,FtM,freq=100000000):
         self.h=1/freq
-        self.force=force
-    def run(self):
+        self.FtM=FtM
+        self.sensorCFG=sensorCFG
+
+
+    def run(self,FtM,t):
+        sens=sensor(self.sensorCFG[0],self.sensorCFG[1])
         time_after_loop = time.perf_counter()
         while True:
             time_before_loop = time.perf_counter()
             if time_before_loop - time_after_loop >= self.h:
-                self.force[0]=self.sensor.readSensors()[0]
+                FtM[0]=sens.readSensors()[0]
                 time_after_loop = time.perf_counter()
-    def start(self):
-        p=Process(target=self.run)
-        p.start()
-            
 
+
+    def start(self):
+        p=Process(target=self.run,args=(self.FtM,0))
+        p.start()
 
 class myThreadFrictionEstimator(object):
-
-
-
-    def __init__(self,constants,omegaM,TfrM,h=0.0001):
-        #threading.Thread.__init__(self)
-
+    def __init__(self,constants,omegaM,TfrM,FtM,h=0.0001):
         self.z=0
         self.h=h
         sigma0,sigma1,sigma2,Ts,Tc,Vs=constants
@@ -51,30 +49,32 @@ class myThreadFrictionEstimator(object):
         self.frequency=1/h
         self.omegaM=omegaM
         self.TfrM=TfrM
-        
+        self.FtM=FtM
 
     def calcZdot(self,t,z):
-        omega=self.omegaM[0]
+        omega=t
+        epz=self.sigma0/800
         g=self.Tc+(self.Ts-self.Tc)*math.e**(-((omega/self.Vs)**2))
         g=g/self.sigma0
-        zDot=omega-(abs(omega)/g)*z
+        zDot=omega-(epz+abs(omega)/g)*z
         return zDot
 
-    def CN(self,guess):
-        return -guess+self.z+0.5*self.h*(self.calcZdot(0,self.z)+self.calcZdot(0,guess))
+    def CN(self,guess,omega):
+        return -guess+self.z+0.5*self.h*(self.calcZdot(omega,self.z)+self.calcZdot(omega,guess))
 
-    def nextStep(self,omega):
-        if(omega!=0):
-            g=self.Tc+(self.Ts-self.Tc)*math.e**(-((omega/self.Vs)**2))
-            g=g/self.sigma0
-            a=abs(omega)/g
-            b=omega
-            x=-a*self.h
-            z=(math.e**x)*self.z+((math.e**x)-1)/(math.log(math.e**a))*b
-            return z 
-        else:
-            return self.z
+    def nextStep(self):
+        omega=self.omegaM[0]
 
+        if(abs(omega)<=0.023981):
+            ft=self.FtM[0]
+            if(abs(ft)>=0.1):
+                s=sign(ft)
+            else:
+                s=0
+            omega=(0.023981)*(-s)
+
+        guess=self.z+self.h*self.calcZdot(0,self.z)
+        return root(self.CN,guess,args=(omega)).x[0]
         
 
     def run(self,omegaM,TfrM):
@@ -82,10 +82,8 @@ class myThreadFrictionEstimator(object):
         while True:
             time_before_loop = time.perf_counter()
             if time_before_loop - time_after_loop >= self.h:
-                omega=omegaM[0]
-                self.z=self.nextStep(omega)
-                Tfr=self.sigma0*self.z+self.sigma1*self.calcZdot(0,self.z)+self.sigma2*omega
-                #print(time_before_loop - time_after_loop)
+                self.z=self.nextStep()
+                Tfr=self.sigma0*self.z+self.sigma1*self.calcZdot(0,self.z)
                 TfrM[0]=Tfr
                 time_after_loop = time.perf_counter()
 
@@ -93,14 +91,35 @@ class myThreadFrictionEstimator(object):
         p=Process(target=self.run,args=(self.omegaM,self.TfrM))
         p.start()
 
+class myThreadController(object):
+
+    def __init__(self,P,I,FtM,outputTM,setPoint,freq=1000):
+        self.P=P
+        self.I=I
+        self.FtM=FtM
+        self.outputTM=outputTM
+        self.h=1/freq
+        self.setPoint=setPoint
+
+    def run(self,FtM,outputTM):
+        controller=PID(self.P,self.I,0,setpoint=self.setPoint)
+        controller.sample_time=self.h
+        controller.output_limits = (-2.7, 2.7)
+        while True:
+            Ft=FtM[0]
+            output = controller(Ft)
+            outputTM[0]=output
+    def start(self):
+        p=Process(target=self.run,args=(self.FtM,self.outputTM))
+        p.start()        
+
 
    
 
 
 class ControlLoop(object):
 
-
-    def __init__(self,motorController,sensor,frequency,constants,omegaM,TfrM,FtM,r=(22.28/2)*10**-3,motorId=1,motordirection=1):
+    def __init__(self,motorController,sensorCFG,frequency,constants,gains,omegaM,TfrM,FtM,outputTM,r=(22.28/2)*10**-3,motorId=1,motordirection=1):
 
         Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs=constants
 
@@ -116,7 +135,6 @@ class ControlLoop(object):
         self.motorController=motorController
         self.motorID=motorId
         self.motorDir=motordirection
-        self.sensor=sensor
         self.freq=frequency
         self.h=1/frequency
         self.constants=constants
@@ -127,17 +145,22 @@ class ControlLoop(object):
         self.omegaM=omegaM
         self.TfrM=TfrM
         self.FtM=FtM
+        self.outputTM=outputTM
 
         frConstants=[sigma0,sigma1,sigma2,Ts,Tc,Vs]
         self.r=r
-        #loadCellthread=myThreadloadCell(self.sensor,self.force)
-        self.frictionEstimator=myThreadFrictionEstimator(frConstants,omegaM,TfrM,1e-5)
-        self.frictionEstimator.start()
-        #loadCellthread.start()
+
+        loadCellthread=myThreadloadCell(sensorCFG,FtM)
+        frictionEstimator=myThreadFrictionEstimator(frConstants,omegaM,TfrM,FtM,1e-5)
+        self.controller=myThreadController(gains[0],gains[1],FtM,outputTM,self.Tfd,frequency)
+
+        frictionEstimator.start()
+        loadCellthread.start()
+        
         
 
     def Tm_d(self,Tfr,Ftd):
-        return (Ftd*self.r)+(Tfr)
+        return (Ftd*self.r*0.4)+(Tfr)
     
     def Id(self,Tm):
         return Tm/self.Kt
@@ -150,24 +173,18 @@ class ControlLoop(object):
         theta=data[3]
         i=data[1]/1000
         self.omegaM[0]=omega
+        Tfr=self.TfrM[0]
 
-        Tfr=0
-        f=self.TfrM[0]
-        if(f>1):
-            print(f)
+        T_Forward=self.Tm_d(Tfr,self.Tfd)
+        T_FeedBack=0#self.outputTM[0]
+        total=T_Forward+T_FeedBack
         
-        i_d=self.Id(self.Tm_d(Tfr,self.Tfd))
-        
-
-
+        i_d=self.Id(total)
         pos=theta*(14/360)*5
-        
-        
         if(((pos>=52)and i_d>0) or ((pos<=0)and i_d<0)):
             i_d=0
-
-        if(abs(Tfr)<=1 or i_d==0):
-            self.motorController.setGoalCurrent(i_d*1000,self.motorID)
+            print("limits")
+        self.motorController.setGoalCurrent(i_d*1000,self.motorID)
 
     
     def startLoop(self):
@@ -175,6 +192,7 @@ class ControlLoop(object):
         self.motorController.homming(self.motorID)
         self.motorController.setCurrentControlMode(self.motorID)
         self.motorController.enableTorque(self.motorID)
+        self.controller.start()
         
     def run(self):
         self.startLoop()
@@ -204,18 +222,19 @@ if __name__ == '__main__':
     Tc=constants["motorFr_1"]["Tc"]
     Vs=constants["motorFr_1"]["Vs"]
     constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
+    gains=[0.01,0.0005]
 
     omegaM = Manager().list([0])
     TfrM = Manager().list([0])
     FtM=Manager().list([0])
+    outputTM=Manager().list([0])
 
 
-    sens=5#sensor('COM5',38400)
-
-
+    sensorCFG=('COM5',38400)
     motors=motor("COM3",4000000)
+
     freq=1000
 
 
-    l=ControlLoop(motors,sens,freq,constants,omegaM,TfrM,FtM)
+    l=ControlLoop(motors,sensorCFG,freq,constants,gains,omegaM,TfrM,FtM,outputTM)
     l.run()
