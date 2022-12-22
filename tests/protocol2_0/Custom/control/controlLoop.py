@@ -180,7 +180,7 @@ class ControlLoop(object):
         Tfr=self.TfrM[0]
 
         T_Forward=self.Tm_d(Tfr,self.Tfd)
-        T_FeedBack=0#self.outputTM[0]
+        T_FeedBack=self.outputTM[0]
         total=T_Forward+T_FeedBack
         
         i_d=self.Id(total)
@@ -226,7 +226,7 @@ if __name__ == '__main__':
     Tc=constants["motorFr_1"]["Tc"]
     Vs=constants["motorFr_1"]["Vs"]
     constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
-    gains=[0.01,0.05]
+    gains=[0.12,0.00]
 
     omegaM = Manager().list([0])
     TfrM = Manager().list([0])
