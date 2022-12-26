@@ -62,16 +62,8 @@ class myThreadFrictionEstimator(object):
     def CN(self,guess,omega):
         return -guess+self.z+0.5*self.h*(self.calcZdot(omega,self.z)+self.calcZdot(omega,guess))
 
-    def nextStep(self):
-        omega=self.omegaM[0]
-
-        if(abs(omega)<=0.023981):
-            ft=self.FtM[0]
-            if(abs(ft)>=0.1):
-                s=sign(ft)
-            else:
-                s=0
-            omega=(0.023981)*(-s)
+    def nextStep(self,omega):
+    
 
         guess=self.z+self.h*self.calcZdot(0,self.z)
         return root(self.CN,guess,args=(omega)).x[0]
@@ -82,8 +74,20 @@ class myThreadFrictionEstimator(object):
         while True:
             time_before_loop = time.perf_counter()
             if time_before_loop - time_after_loop >= self.h:
-                self.z=self.nextStep()
-                Tfr=self.sigma0*self.z+self.sigma1*self.calcZdot(0,self.z)
+                omega=self.omegaM[0]
+                if(abs(omega)<=0.023981):
+                    ft=self.FtM[0]
+                    if(abs(ft)>=0.1):
+                        s=sign(ft)
+                    else:
+                        s=0
+                    omega=(0.023981/4)*(-s)
+                self.z=self.nextStep(omega)
+                if(abs(self.z)<=1e-6 and omega==0):
+                    self.z=0
+                zD=self.calcZdot(0,self.z)
+                Tfr=self.sigma0*self.z+self.sigma1*zD
+                print(self.z)
                 TfrM[0]=Tfr
                 time_after_loop = time.perf_counter()
 
@@ -140,7 +144,7 @@ class ControlLoop(object):
         self.constants=constants
         
         self.log=[]
-        self.Tfd=0
+        self.Tfd=1
 
         self.omegaM=omegaM
         self.TfrM=TfrM
@@ -176,7 +180,7 @@ class ControlLoop(object):
         Tfr=self.TfrM[0]
 
         T_Forward=self.Tm_d(Tfr,self.Tfd)
-        T_FeedBack=0#self.outputTM[0]
+        T_FeedBack=self.outputTM[0]
         total=T_Forward+T_FeedBack
         
         i_d=self.Id(total)
@@ -222,7 +226,7 @@ if __name__ == '__main__':
     Tc=constants["motorFr_1"]["Tc"]
     Vs=constants["motorFr_1"]["Vs"]
     constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
-    gains=[0.01,0.0005]
+    gains=[0.12,0.00]
 
     omegaM = Manager().list([0])
     TfrM = Manager().list([0])
