@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy.ndimage import uniform_filter1d
-import statsmodels.api as sm
+
 
 a=np.load("dataConv.npy")
 a[:,2]=a[:,2]*353.5
@@ -21,7 +21,7 @@ for colum in [2]:#t[1]):
     mask=lowess[:,1]>=0
     lowess[:,1]=lowess[:,1]*mask
     plt.plot(lowess[:, 0], lowess[:, 1],label=legend[colum],linewidth=0.5)
-    #plt.plot(xAxis,y_smooth,label=legend[colum],linewidth=0.5)
+
     plt.plot(xAxis,yAxis,label=legend[colum],linewidth=0.5)
     plt.legend(loc='best')
     
