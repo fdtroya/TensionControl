@@ -75,10 +75,10 @@ class myThreadFrictionEstimator(object):
             time_before_loop = time.perf_counter()
             if time_before_loop - time_after_loop >= self.h:
                 omega=self.omegaM[0]
-                if(abs(omega)<=0.023981):
+                if(abs(omega)<0.023981):
                     ft=self.FtM[0]
                     if(abs(ft)>=0.1):
-                        s=sign(ft)
+                        s=0
                     else:
                         s=0
                     omega=(0.023981/4)*(-s)
@@ -97,7 +97,7 @@ class myThreadFrictionEstimator(object):
 
 class myThreadController(object):
 
-    def __init__(self,P,I,FtM,outputTM,setPoint,freq=1000):
+    def __init__(self,P,I,FtM,outputTM,setPoint,freq=10000):
         self.P=P
         self.I=I
         self.FtM=FtM
@@ -106,7 +106,7 @@ class myThreadController(object):
         self.setPoint=setPoint
 
     def run(self,FtM,outputTM):
-        controller=PID(self.P,self.I,0,setpoint=self.setPoint)
+        controller=PID(0.2087,2.165,0.1987,setpoint=self.setPoint)
         controller.sample_time=self.h
         controller.output_limits = (-2.7, 2.7)
         while True:
@@ -144,7 +144,7 @@ class ControlLoop(object):
         self.constants=constants
         
         self.log=[]
-        self.Tfd=1
+        self.Tfd=1.7
 
         self.omegaM=omegaM
         self.TfrM=TfrM
@@ -164,7 +164,7 @@ class ControlLoop(object):
         
 
     def Tm_d(self,Tfr,Ftd):
-        return (Ftd*self.r*0.4)+(Tfr)
+        return (Ftd*self.r*0)+(Tfr)*0.5
     
     def Id(self,Tm):
         return Tm/self.Kt
@@ -179,9 +179,9 @@ class ControlLoop(object):
         self.omegaM[0]=omega
         Tfr=self.TfrM[0]
 
-        T_Forward=self.Tm_d(Tfr,self.Tfd)
+        T_Forward=self.Tm_d(Tfr,self.Tfd)*0
         T_FeedBack=self.outputTM[0]
-        total=T_Forward+T_FeedBack
+        total=T_FeedBack+T_Forward
         
         i_d=self.Id(total)
         pos=theta*(14/360)*5
