@@ -197,6 +197,6 @@ def SHFrSS():
 if __name__ == '__main__':  
     #print(funcM(guessM,True))
     #print(funcFr(guessFr,True))
-    print(funcFr(guessFr,True))
-    #print(funcSt(guessSS,True))
+    #print(funcFr(guessFr,True))
+    print(funcSt(guessSS,True))
     #evolveFrSS()

@@ -97,16 +97,17 @@ class myThreadFrictionEstimator(object):
 
 class myThreadController(object):
 
-    def __init__(self,P,I,FtM,outputTM,setPoint,freq=10000):
+    def __init__(self,P,I,D,FtM,outputTM,setPoint,freq=10000):
         self.P=P
         self.I=I
+        self.D=D
         self.FtM=FtM
         self.outputTM=outputTM
         self.h=1/freq
         self.setPoint=setPoint
 
     def run(self,FtM,outputTM):
-        controller=PID(0.2087,2.165,0.1987,setpoint=self.setPoint)
+        controller=PID(0.191188,0.032766,0.092667,setpoint=self.setPoint)#0.03265,0.011597,0.0096
         controller.sample_time=self.h
         controller.output_limits = (-2.7, 2.7)
         while True:
@@ -156,7 +157,7 @@ class ControlLoop(object):
 
         loadCellthread=myThreadloadCell(sensorCFG,FtM)
         frictionEstimator=myThreadFrictionEstimator(frConstants,omegaM,TfrM,FtM,1e-5)
-        self.controller=myThreadController(gains[0],gains[1],FtM,outputTM,self.Tfd,frequency)
+        self.controller=myThreadController(gains[0],gains[1],gains[2],FtM,outputTM,self.Tfd,frequency)
 
         frictionEstimator.start()
         loadCellthread.start()
@@ -164,7 +165,7 @@ class ControlLoop(object):
         
 
     def Tm_d(self,Tfr,Ftd):
-        return (Ftd*self.r*0)+(Tfr)*0.5
+        return (Ftd*self.r*0.3)+(Tfr)*0.2
     
     def Id(self,Tm):
         return Tm/self.Kt
@@ -179,7 +180,7 @@ class ControlLoop(object):
         self.omegaM[0]=omega
         Tfr=self.TfrM[0]
 
-        T_Forward=self.Tm_d(Tfr,self.Tfd)*0
+        T_Forward=self.Tm_d(Tfr,self.Tfd)
         T_FeedBack=self.outputTM[0]
         total=T_FeedBack+T_Forward
         
@@ -226,7 +227,7 @@ if __name__ == '__main__':
     Tc=constants["motorFr_1"]["Tc"]
     Vs=constants["motorFr_1"]["Vs"]
     constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
-    gains=[0.12,0.00]
+    gains=[0.2087,2.165,0.1987]
 
     omegaM = Manager().list([0])
     TfrM = Manager().list([0])
