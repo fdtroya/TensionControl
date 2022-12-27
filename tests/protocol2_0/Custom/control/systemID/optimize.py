@@ -35,7 +35,9 @@ guessFr1=[9288.98500623 ,  97.33555491]
 
 
 boundsSS=[(0.03,0.1),(0.1,0.18),(0.03,0.12),(0.008,0.1)]
-guessSS=[1.54433544e-01,0.14357413,0.10497904,0.03391913]
+guessSS=[0.03282235, 0.14350523, 0.10498242 ,0.03392802]
+
+
 
 #sigma2,Ts,Tc,Vs=guessSS
 
@@ -47,6 +49,7 @@ J=models["motor"]["J"]
 Kt=models["motor"]["Kt"]
 B=models["motor"]["B"]
 
+guessM=[Ra,La,J,Kt,B]
 
 experimentalOmegaFrf=interpolate.interp1d(outputDataFr[:,-1], outputDataFr[:,0],fill_value=0,bounds_error=False)
 experimentalOmegaf=interpolate.interp1d(outputData[:,-1], outputData[:,0],fill_value=0,bounds_error=False)
@@ -63,6 +66,24 @@ def signal(t):# t in seconds [0 10]
     return (7*math.sin((math.pi/endTime)*t),0) 
 
 
+def funcM(x,plot=False):
+    interest=10
+    Ra,La,J,Kt,B=list(x)
+    constants=[Ra,La,J,Kt,B]
+    individual=Model.motorModel(Ra,La,J,Kt,B,signal,[0,0],[0,interest])
+    ts=np.arange(0,interest,0.001)
+    experimentalOmega=np.clip(experimentalOmegaf(ts),0,None)
+    if(plot):
+        plt.title("Model Optimizado")
+        plt.xlabel("tiempo [s]")
+        plt.ylabel("Omega [rad/s]")
+        plt.plot(individual.t,individual.y[0],label='Simulacion')
+        plt.plot(ts,experimentalOmega,label='Datos experimentales')
+        plt.legend()
+        plt.show()
+    return 0
+
+
 def funcFr(x,plot=False):
     interest=10
     sigma0,sigma1,sigma2,Ts,Tc,Vs=list(x)
@@ -75,8 +96,12 @@ def funcFr(x,plot=False):
     individualOmega=f(ts)
     squareErrorArray=(individualOmega-experimentalOmega)**2
     if(plot):
-        plt.plot(individual.t,individual.y[2])
-        #plt.plot(ts,experimentalOmega)
+        plt.title("Model Optimizado")
+        plt.xlabel("tiempo [s]")
+        plt.ylabel("Omega [rad/s]")
+        plt.plot(individual.t,individual.y[0],label='Simulacion')
+        plt.plot(ts,experimentalOmega,label='Datos experimentales')
+        plt.legend()
         plt.show()
     squareErrorTot= np.sum(squareErrorArray)
     return squareErrorTot
@@ -100,9 +125,14 @@ def funcSt(x,plot=False):
     err=(Tf(omegaLs)-Torques)**2
     if plot:
         ws=np.arange(-3,3,0.01)
-        plt.plot(ws,Tf(ws),'.')
-        plt.plot(outputDataStable[:,1],outputDataStable[:,0],'.')
+        plt.title("Model Optimizado")
+        plt.xlabel("Omega [rad/s]")
+        plt.ylabel("Torque [Nm]")
+        plt.plot(ws,Tf(ws),'.',label='Simulacion')
+        plt.plot(outputDataStable[:,1],outputDataStable[:,0],'.',label='Datos experimentales')
+        plt.legend()
         plt.show()
+
     return np.sum(err)
     
 
@@ -165,6 +195,8 @@ def SHFrSS():
 
 
 if __name__ == '__main__':  
+    #print(funcM(guessM,True))
+    #print(funcFr(guessFr,True))
     print(funcFr(guessFr,True))
     #print(funcSt(guessSS,True))
-    #evolveFr()
+    #evolveFrSS()
