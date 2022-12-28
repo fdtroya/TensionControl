@@ -36,7 +36,7 @@ class myThreadloadCell(object):
         p.start()
 
 class myThreadFrictionEstimator(object):
-    def __init__(self,constants,omegaM,TfrM,FtM,h=0.0001):
+    def __init__(self,constants,omegaM,TfrM,outputTM,FtM,h=0.0001):
         self.z=0
         self.h=h
         sigma0,sigma1,sigma2,Ts,Tc,Vs=constants
@@ -49,6 +49,7 @@ class myThreadFrictionEstimator(object):
         self.frequency=1/h
         self.omegaM=omegaM
         self.TfrM=TfrM
+        self.outputTM=outputTM
         self.FtM=FtM
 
     def calcZdot(self,t,z):
@@ -63,8 +64,6 @@ class myThreadFrictionEstimator(object):
         return -guess+self.z+0.5*self.h*(self.calcZdot(omega,self.z)+self.calcZdot(omega,guess))
 
     def nextStep(self,omega):
-    
-
         guess=self.z+self.h*self.calcZdot(0,self.z)
         return root(self.CN,guess,args=(omega)).x[0]
         
@@ -74,20 +73,17 @@ class myThreadFrictionEstimator(object):
         while True:
             time_before_loop = time.perf_counter()
             if time_before_loop - time_after_loop >= self.h:
-                omega=self.omegaM[0]
+                omega=omegaM[0]
                 if(abs(omega)<0.023981):
-                    ft=self.FtM[0]
-                    if(abs(ft)>=0.1):
-                        s=0
-                    else:
-                        s=0
-                    omega=(0.023981/4)*(-s)
+                    output=self.outputTM[0]-self.FtM[0]*(22.28/2)*10**-3
+                    s=sign(output)
+                    print(output)                 
+                    omega=(0.023981)*(output)
                 self.z=self.nextStep(omega)
                 if(abs(self.z)<=1e-6 and omega==0):
                     self.z=0
                 zD=self.calcZdot(0,self.z)
                 Tfr=self.sigma0*self.z+self.sigma1*zD
-                print(self.z)
                 TfrM[0]=Tfr
                 time_after_loop = time.perf_counter()
 
@@ -98,16 +94,14 @@ class myThreadFrictionEstimator(object):
 class myThreadController(object):
 
     def __init__(self,P,I,D,FtM,outputTM,setPoint,freq=10000):
-        self.P=P
-        self.I=I
-        self.D=D
+        self.gains=[P,I,D]
         self.FtM=FtM
         self.outputTM=outputTM
         self.h=1/freq
         self.setPoint=setPoint
 
-    def run(self,FtM,outputTM):
-        controller=PID(0.191188,0.032766,0.092667,setpoint=self.setPoint)#0.03265,0.011597,0.0096
+    def run(self,FtM,outputTM,gains):
+        controller=PID(gains[0],gains[1],gains[2],setpoint=self.setPoint)
         controller.sample_time=self.h
         controller.output_limits = (-2.7, 2.7)
         while True:
@@ -115,16 +109,14 @@ class myThreadController(object):
             output = controller(Ft)
             outputTM[0]=output
     def start(self):
-        p=Process(target=self.run,args=(self.FtM,self.outputTM))
+        p=Process(target=self.run,args=(self.FtM,self.outputTM,self.gains))
         p.start()        
 
-
-   
 
 
 class ControlLoop(object):
 
-    def __init__(self,motorController,sensorCFG,frequency,constants,gains,omegaM,TfrM,FtM,outputTM,r=(22.28/2)*10**-3,motorId=1,motordirection=1):
+    def __init__(self,motorController,sensorCFG,frequency,constants,gains,setpoint,omegaM,TfrM,FtM,outputTM,r=(22.28/2)*10**-3,motorId=1,motordirection=1):
 
         Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs=constants
 
@@ -145,7 +137,7 @@ class ControlLoop(object):
         self.constants=constants
         
         self.log=[]
-        self.Tfd=1.7
+        self.Tfd=setpoint
 
         self.omegaM=omegaM
         self.TfrM=TfrM
@@ -156,7 +148,7 @@ class ControlLoop(object):
         self.r=r
 
         loadCellthread=myThreadloadCell(sensorCFG,FtM)
-        frictionEstimator=myThreadFrictionEstimator(frConstants,omegaM,TfrM,FtM,1e-5)
+        frictionEstimator=myThreadFrictionEstimator(frConstants,omegaM,TfrM,outputTM,FtM,1e-5)
         self.controller=myThreadController(gains[0],gains[1],gains[2],FtM,outputTM,self.Tfd,frequency)
 
         frictionEstimator.start()
@@ -165,7 +157,7 @@ class ControlLoop(object):
         
 
     def Tm_d(self,Tfr,Ftd):
-        return (Ftd*self.r*0.3)+(Tfr)*0.2
+        return (Ftd*self.r*0)+(Tfr)*0.7
     
     def Id(self,Tm):
         return Tm/self.Kt
@@ -188,7 +180,7 @@ class ControlLoop(object):
         pos=theta*(14/360)*5
         if(((pos>=52)and i_d>0) or ((pos<=0)and i_d<0)):
             i_d=0
-            print("limits")
+            
         self.motorController.setGoalCurrent(i_d*1000,self.motorID)
 
     
@@ -227,7 +219,7 @@ if __name__ == '__main__':
     Tc=constants["motorFr_1"]["Tc"]
     Vs=constants["motorFr_1"]["Vs"]
     constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
-    gains=[0.2087,2.165,0.1987]
+    gains=[0.01938,0.0049,0.0066]#0.03265,0.011597,0.0096#0.191188,0.032766,0.092667
 
     omegaM = Manager().list([0])
     TfrM = Manager().list([0])
@@ -241,5 +233,5 @@ if __name__ == '__main__':
     freq=1000
 
 
-    l=ControlLoop(motors,sensorCFG,freq,constants,gains,omegaM,TfrM,FtM,outputTM)
+    l=ControlLoop(motors,sensorCFG,freq,constants,gains,1.7,omegaM,TfrM,FtM,outputTM)
     l.run()
