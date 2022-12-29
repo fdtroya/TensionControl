@@ -81,23 +81,23 @@ def post(array,plot=False):
 def dynamicTest(id,com,save=True):
     dyn1=motor(com,4000000)
     dyn1.connect([id])
-    dyn1.setPWMControlMode(id)
-    
-   
-    
-   
     
     allData=[]#list of arrays first for positive direction, second for negative direction
-    s=time.time()
     
-    presentTime=0
+    
+    
     
     for direction in dirs:
-        dyn1.homming(id,direction=-1*direction)
+        dyn1.homming(id,direction=direction*-1)
+        dyn1.setPWMControlMode(id)
         dyn1.enableTorque(id) 
         timeLs=[]
         dirData=[]
+        time.sleep(1)
+        s=time.time()
+        presentTime=0
         loopEndtime=time.perf_counter()
+        
         while presentTime<=endTimeFr:
             loopStartTime=time.perf_counter()
             if(loopStartTime-loopEndtime>=timeStep):
@@ -115,7 +115,8 @@ def dynamicTest(id,com,save=True):
         dataConv=data*motor.bulkConversion
         dataConv=np.append(dataConv, timeArr, axis=1)#format[[w0,t0],[w1,t1]...]
         allData.append(post(dataConv))
-    dyn1.disableTorque(id)
+        dyn1.disableTorque(id)
+    
     i=0
     if(save):
         for direction in dirs:
@@ -201,4 +202,5 @@ def stableTest(id,com,MaxOmega,NDataPoints,plot=False,save=True):
     
 
 if __name__ == '__main__':  
-    stableTest(1,'COM3',plot=True,MaxOmega=2,NDataPoints=25)
+    #dynamicTest(1,'COM3')
+    stableTest(1,'COM3',2.5,25,True,True)

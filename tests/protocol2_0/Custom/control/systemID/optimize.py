@@ -15,8 +15,7 @@ def loadJson(file):
         data = json.load(json_file)
         return data
 
-outputDataFr=np.load("dataFrFiltered.npy")#change name 
-outputData=np.load("dataHFiltered.npy")#change name 
+outputDataFr=np.load("dataFrFiltered1.npy")#change name 
 outputDataStable=np.load("stableStateData.npy")
 models=loadJson("models.json")
 
@@ -27,15 +26,15 @@ r=(22.28/2)*10**-3
 
 
 
-boundsFr=[(9000,15000),(70,500),(0.03,0.2),(0.09,0.18),(0.01,0.14),(0.002,0.15)]
-guessFr=[1.13844704e+04,2.60291157e+02,9.08291252e-02,9.22317171e-02,1.39540214e-01,8.72559485e-02]#9.36241349e-02]
+boundsFr=[(9000,15000),(70,500),(0,0.1),(0.01,0.18),(0.001,0.12),(0.008,0.1)]
+guessFr=[1.14738950e+04, 1.53051627e+02, 2.96498566e-03, 7.14060911e-02,5.46016179e-02, 6.13168136e-02]#9.36241349e-02]
 
 boundsFr1=[(9000,15000),(70,500)]
 guessFr1=[9288.98500623 ,  97.33555491]
 
 
-boundsSS=[(0.03,0.1),(0.1,0.18),(0.03,0.12),(0.008,0.1)]
-guessSS=[0.03282235, 0.14350523, 0.10498242 ,0.03392802]
+boundsSS=[(0,0.1),(0.01,0.18),(0.001,0.12),(0.008,0.1)]
+guessSS=[0.02133408 ,0.0619655 , 0.03517353 ,0.09698982]
 
 
 
@@ -52,7 +51,7 @@ B=models["motor"]["B"]
 guessM=[Ra,La,J,Kt,B]
 
 experimentalOmegaFrf=interpolate.interp1d(outputDataFr[:,-1], outputDataFr[:,0],fill_value=0,bounds_error=False)
-experimentalOmegaf=interpolate.interp1d(outputData[:,-1], outputData[:,0],fill_value=0,bounds_error=False)
+
 
 def sign(n):
     return int(n>0) - int(n<0)
@@ -65,23 +64,6 @@ def signalFr(t):# t in seconds [0 10]
 def signal(t):# t in seconds [0 10]
     return (7*math.sin((math.pi/endTime)*t),0) 
 
-
-def funcM(x,plot=False):
-    interest=10
-    Ra,La,J,Kt,B=list(x)
-    constants=[Ra,La,J,Kt,B]
-    individual=Model.motorModel(Ra,La,J,Kt,B,signal,[0,0],[0,interest])
-    ts=np.arange(0,interest,0.001)
-    experimentalOmega=np.clip(experimentalOmegaf(ts),0,None)
-    if(plot):
-        plt.title("Model Optimizado")
-        plt.xlabel("tiempo [s]")
-        plt.ylabel("Omega [rad/s]")
-        plt.plot(individual.t,individual.y[0],label='Simulacion')
-        plt.plot(ts,experimentalOmega,label='Datos experimentales')
-        plt.legend()
-        plt.show()
-    return 0
 
 
 def funcFr(x,plot=False):
@@ -198,5 +180,6 @@ if __name__ == '__main__':
     #print(funcM(guessM,True))
     #print(funcFr(guessFr,True))
     #print(funcFr(guessFr,True))
-    print(funcSt(guessSS,True))
+    #print(funcSt(guessSS,True))
     #evolveFrSS()
+    evolveFr()

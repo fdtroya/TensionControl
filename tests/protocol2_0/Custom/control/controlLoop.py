@@ -74,11 +74,12 @@ class myThreadFrictionEstimator(object):
             time_before_loop = time.perf_counter()
             if time_before_loop - time_after_loop >= self.h:
                 omega=omegaM[0]
-                if(abs(omega)<0.023981):
+                if(abs(omega)<0.023):
                     output=self.outputTM[0]-self.FtM[0]*(22.28/2)*10**-3
-                    s=sign(output)
-                    print(output)                 
-                    omega=(0.023981)*(output)
+                    s=sign(output)   
+                    if(abs(output)<0.0001):
+                        s=0        
+                    omega=(0.023981/2)*s
                 self.z=self.nextStep(omega)
                 if(abs(self.z)<=1e-6 and omega==0):
                     self.z=0
@@ -103,7 +104,7 @@ class myThreadController(object):
     def run(self,FtM,outputTM,gains):
         controller=PID(gains[0],gains[1],gains[2],setpoint=self.setPoint)
         controller.sample_time=self.h
-        controller.output_limits = (-2.7, 2.7)
+        controller.output_limits = (0, 4.6675078387)
         while True:
             Ft=FtM[0]
             output = controller(Ft)
@@ -157,7 +158,7 @@ class ControlLoop(object):
         
 
     def Tm_d(self,Tfr,Ftd):
-        return (Ftd*self.r*0)+(Tfr)*0.7
+        return (Ftd*self.r*0)+(Tfr)*0.5
     
     def Id(self,Tm):
         return Tm/self.Kt
@@ -172,22 +173,22 @@ class ControlLoop(object):
         self.omegaM[0]=omega
         Tfr=self.TfrM[0]
 
-        T_Forward=self.Tm_d(Tfr,self.Tfd)
-        T_FeedBack=self.outputTM[0]
+        T_Forward=self.Tm_d(Tfr,self.Tfd)*0
+        T_FeedBack=self.outputTM[0]*360/(2*3.1415)
         total=T_FeedBack+T_Forward
         
-        i_d=self.Id(total)
+        #i_d=self.Id(total)
         pos=theta*(14/360)*5
-        if(((pos>=52)and i_d>0) or ((pos<=0)and i_d<0)):
-            i_d=0
-            
-        self.motorController.setGoalCurrent(i_d*1000,self.motorID)
+        #if(((pos>=52)and i_d>0) or ((pos<=0)and i_d<0)):
+         #   i_d=0
+        print(total)
+        self.motorController.setGoalPositionAngle(total,self.motorID)
 
     
     def startLoop(self):
         self.motorController.connect([self.motorID])
         self.motorController.homming(self.motorID)
-        self.motorController.setCurrentControlMode(self.motorID)
+        self.motorController.setExtendedPositionControlMode(self.motorID)
         self.motorController.enableTorque(self.motorID)
         self.controller.start()
         
@@ -219,7 +220,7 @@ if __name__ == '__main__':
     Tc=constants["motorFr_1"]["Tc"]
     Vs=constants["motorFr_1"]["Vs"]
     constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
-    gains=[0.01938,0.0049,0.0066]#0.03265,0.011597,0.0096#0.191188,0.032766,0.092667
+    gains=[0.36648,4.7603,0.008]#0.03265,0.011597,0.0096#0.191188,0.032766,0.092667
 
     omegaM = Manager().list([0])
     TfrM = Manager().list([0])
@@ -230,8 +231,8 @@ if __name__ == '__main__':
     sensorCFG=('COM5',38400)
     motors=motor("COM3",4000000)
 
-    freq=1000
+    freq=900
 
 
-    l=ControlLoop(motors,sensorCFG,freq,constants,gains,1.7,omegaM,TfrM,FtM,outputTM)
+    l=ControlLoop(motors,sensorCFG,freq,constants,gains,0.7,omegaM,TfrM,FtM,outputTM)
     l.run()
