@@ -104,7 +104,7 @@ class myThreadController(object):
     def run(self,FtM,outputTM,gains):
         controller=PID(gains[0],gains[1],gains[2],setpoint=self.setPoint)
         controller.sample_time=self.h
-        controller.output_limits = (0, 4.6675078387)
+        controller.output_limits = (0, 4.1)
         while True:
             Ft=FtM[0]
             output = controller(Ft)
@@ -174,20 +174,18 @@ class ControlLoop(object):
         Tfr=self.TfrM[0]
 
         T_Forward=self.Tm_d(Tfr,self.Tfd)*0
-        T_FeedBack=self.outputTM[0]*360/(2*3.1415)
+        T_FeedBack=self.outputTM[0]
         total=T_FeedBack+T_Forward
-        
-        #i_d=self.Id(total)
+      
         pos=theta*(14/360)*5
-        #if(((pos>=52)and i_d>0) or ((pos<=0)and i_d<0)):
-         #   i_d=0
-        print(total)
-        self.motorController.setGoalPositionAngle(total,self.motorID)
-
+       
+        self.motorController.setGoalPositionAngle(total*360/(2*3.1415),self.motorID)
+        #self.motorController.setGoalVelocity(total,self.motorID) 
     
     def startLoop(self):
         self.motorController.connect([self.motorID])
         self.motorController.homming(self.motorID)
+        #self.motorController.setVelocityControlMode(self.motorID)
         self.motorController.setExtendedPositionControlMode(self.motorID)
         self.motorController.enableTorque(self.motorID)
         self.controller.start()
@@ -220,7 +218,7 @@ if __name__ == '__main__':
     Tc=constants["motorFr_1"]["Tc"]
     Vs=constants["motorFr_1"]["Vs"]
     constants=[Ra, La, J, Kt, B,sigma0,sigma1,sigma2,Ts,Tc,Vs]
-    gains=[0.36648,4.7603,0.008]#0.03265,0.011597,0.0096#0.191188,0.032766,0.092667
+    gains=[0.445,0.445,0]#0.445,0.445,0
 
     omegaM = Manager().list([0])
     TfrM = Manager().list([0])
@@ -234,5 +232,5 @@ if __name__ == '__main__':
     freq=900
 
 
-    l=ControlLoop(motors,sensorCFG,freq,constants,gains,0.7,omegaM,TfrM,FtM,outputTM)
+    l=ControlLoop(motors,sensorCFG,freq,constants,gains,1.575,omegaM,TfrM,FtM,outputTM)
     l.run()
