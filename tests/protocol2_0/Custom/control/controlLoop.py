@@ -26,9 +26,12 @@ class myThreadloadCell(object):
         time_after_loop = time.perf_counter()
         while True:
             time_before_loop = time.perf_counter()
-            if time_before_loop - time_after_loop >= self.h:
-                FtM[0]=sens.readSensors()[0]
-                time_after_loop = time.perf_counter()
+        
+            FtM[0]=sens.readSensors()[0]
+            time_after_loop = time.perf_counter()
+            time_to_sleep=self.h-(time_after_loop-time_before_loop)
+            if(time_to_sleep>0):
+                time.sleep(time_to_sleep)     
 
 
     def start(self):
@@ -72,21 +75,23 @@ class myThreadFrictionEstimator(object):
         time_after_loop = time.perf_counter()
         while True:
             time_before_loop = time.perf_counter()
-            if time_before_loop - time_after_loop >= self.h:
-                omega=omegaM[0]
-                if(abs(omega)<0.023):
-                    output=self.outputTM[0]-self.FtM[0]*(22.28/2)*10**-3
-                    s=sign(output)   
-                    if(abs(output)<0.0001):
-                        s=0        
-                    omega=(0.023981/2)*s
-                self.z=self.nextStep(omega)
-                if(abs(self.z)<=1e-6 and omega==0):
-                    self.z=0
-                zD=self.calcZdot(0,self.z)
-                Tfr=self.sigma0*self.z+self.sigma1*zD
-                TfrM[0]=Tfr
-                time_after_loop = time.perf_counter()
+            omega=omegaM[0]
+            if(abs(omega)<0.023):
+                output=self.outputTM[0]-self.FtM[0]*(22.28/2)*10**-3
+                s=sign(output)   
+                if(abs(output)<0.0001):
+                    s=0        
+                omega=(0.023981/2)*s
+            self.z=self.nextStep(omega)
+            if(abs(self.z)<=1e-6 and omega==0):
+                self.z=0
+            zD=self.calcZdot(0,self.z)
+            Tfr=self.sigma0*self.z+self.sigma1*zD
+            TfrM[0]=Tfr
+            time_after_loop = time.perf_counter()
+            time_to_sleep=self.h-(time_after_loop-time_before_loop)
+            if(time_to_sleep>0):
+                time.sleep(time_to_sleep)                         
 
     def start(self):
         p=Process(target=self.run,args=(self.omegaM,self.TfrM))
@@ -195,9 +200,11 @@ class ControlLoop(object):
         time_after_loop = time.perf_counter()
         while True:
             time_before_loop = time.perf_counter()
-            if time_before_loop - time_after_loop >= self.h:
-                self.loop()
-                time_after_loop = time.perf_counter()
+            self.loop()
+            time_after_loop = time.perf_counter()
+            time_to_sleep=self.h-(time_after_loop-time_before_loop)
+            if(time_to_sleep>0):
+                time.sleep(time_to_sleep)     
 
     
 

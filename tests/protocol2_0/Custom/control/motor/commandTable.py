@@ -1,4 +1,5 @@
-#COMMANDS
+#COMMANDS VALUES FOR THE DYNAMIXEL XH 430
+
 CMD_TORQUE_ENABLE               = 1                 # Value for enabling the torque
 CMD_TORQUE_DISABLE              = 0                 # Value for disabling the torque
 CMD_EXT_POSITION_CONTROL_MODE   = 4                  #Value for extended position control mode (operating mode)

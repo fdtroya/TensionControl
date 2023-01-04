@@ -13,17 +13,21 @@ from motor.addressTable import *
 from motor.commandTable import *
 import numpy as np
 
+
+#Wrapper for dynamixel SDK
 class motor(object):
 
     #utilities
-    pulleyR=11#in mm
-    displacementPerRotation=14*5 #in mm
-    bulkConversion=np.array([0.01356,2.69,0.023981,0.087912087912])
+    pulleyR=11.1#Radius of the pulley 
+    displacementPerRotation=14*5 #linear motion of the pulley in one rotation in mm
+    bulkConversion=np.array([0.01356,2.69,0.023981,0.087912087912])#constants for convertion of reading to units [voltage, current,velocity,position] [volts, mAmps, Rad/s,degrees] 
 
+    #Byte to Signed 32 number
     def toSigned32(n):
         n = n & 0xffffffff
         return (n ^ 0x80000000) - 0x80000000
 
+    #functions to convert measurements to units
     def mAmpsToNumber(mAmps): #0-1743.12
         return round(mAmps/motor.bulkConversion[1])
     def numberTomAmps(number):
@@ -46,6 +50,8 @@ class motor(object):
     def radSToNumber(radS):
         return round(radS/motor.bulkConversion[2])
     
+
+    #byte to twos complement transformation
     def twos_comp(val, bytes):
         bits=8*bytes
         if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
@@ -62,7 +68,7 @@ class motor(object):
         self.connected=False
         
       
-        
+    #connect with the motors hich id is in IDS: "[1,2]"    
     def connect(self,IDS):
         if(not self.connected):
 
@@ -82,13 +88,14 @@ class motor(object):
                 raise Exception("Failed to change the baudrate")
         
         
-
+    #disconnect the motors with id in IDS
     def disConnect(self):
          # Disable Dynamixel Torque
         self.disableTorque()
         # Close port
         self.portHandler.closePort()
         
+    #Homming sequence of the motor with the id ID
     def homming(self,DXL_ID,direction=-1):
         threshold=85
         self.disableTorque(DXL_ID)
@@ -270,21 +277,6 @@ class motor(object):
 
     def isArmed(self,DXL_ID):
         return self.readAddress(ADDR_PRO_TORQUE_ENABLE,LEN_PRO_TORQUE_ENABLE,DXL_ID)            
-
-"""
-    def keyBinds(self,e):
-     
-        if( e.name=='d' ):          
-            self.disableTorque()
-        elif(e.name==('a')):
-            self.enableTorque()
-        elif(e.name==('h')):
-            self.setHome()
-        elif(e.name==('p')):
-            print(self.getPresentPositionAngle())
-            
-   """        
-
 
 
 

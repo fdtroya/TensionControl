@@ -1,4 +1,7 @@
 # Control table address
+#TABLE WITH THE ALIASES AND ADDRESSES OF THE DYNAMIXEL XH430
+
+
 ADDR_PRO_TORQUE_ENABLE      = 64               # Control table address is different in Dynamixel model
 ADDR_OPERATING_MODE=11
 
