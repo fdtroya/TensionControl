@@ -177,11 +177,14 @@ class ControlLoop(object):
         i=data[1]/1000
         self.omegaM[0]=omega
         Tfr=self.TfrM[0]
+        controllerPos=PID(,,,setpoint=)
+        controllerPos.sample_time=self.h
+        controllerPos.output_limits = (0, 4.1)
 
         T_Forward=self.Tm_d(Tfr,self.Tfd)*0
-        T_FeedBack=self.outputTM[0]
+        #T_FeedBack=self.outputTM[0]
+        
         total=T_FeedBack+T_Forward
-      
         pos=theta*(14/360)*5
        
         self.motorController.setGoalPositionAngle(total*360/(2*3.1415),self.motorID)
@@ -191,7 +194,8 @@ class ControlLoop(object):
         self.motorController.connect([self.motorID])
         self.motorController.homming(self.motorID)
         #self.motorController.setVelocityControlMode(self.motorID)
-        self.motorController.setExtendedPositionControlMode(self.motorID)
+        #self.motorController.setExtendedPositionControlMode(self.motorID)
+        self.motorController.setCurrentControlMode(self.motorID)
         self.motorController.enableTorque(self.motorID)
         self.controller.start()
         
