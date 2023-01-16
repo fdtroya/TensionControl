@@ -2,11 +2,11 @@ from motor.motor import motor
 from motor.loadCell import sensor
 import time
 import math
-import threading
+
 import json
 from multiprocessing import Process
 from multiprocessing import Manager
-import scipy.integrate as scI
+import matplotlib.pyplot as plt
 from scipy.optimize import root
 from simple_pid import PID
 
@@ -97,26 +97,6 @@ class myThreadFrictionEstimator(object):
         p=Process(target=self.run,args=(self.omegaM,self.TfrM))
         p.start()
 
-class myThreadController(object):
-
-    def __init__(self,P,I,D,FtM,outputTM,setPoint,freq=10000):
-        self.gains=[P,I,D]
-        self.FtM=FtM
-        self.outputTM=outputTM
-        self.h=1/freq
-        self.setPoint=setPoint
-
-    def run(self,FtM,outputTM,gains):
-        controller=PID(gains[0],gains[1],gains[2],setpoint=self.setPoint)
-        controller.sample_time=self.h
-        controller.output_limits = (0, 4.1)
-        while True:
-            Ft=FtM[0]
-            output = controller(Ft)
-            outputTM[0]=output
-    def start(self):
-        p=Process(target=self.run,args=(self.FtM,self.outputTM,self.gains))
-        p.start()        
 
 
 
@@ -155,7 +135,6 @@ class ControlLoop(object):
 
         loadCellthread=myThreadloadCell(sensorCFG,FtM)
         frictionEstimator=myThreadFrictionEstimator(frConstants,omegaM,TfrM,outputTM,FtM,1e-5)
-        self.controller=myThreadController(gains[0],gains[1],gains[2],FtM,outputTM,self.Tfd,frequency)
 
         frictionEstimator.start()
         loadCellthread.start()
@@ -163,52 +142,90 @@ class ControlLoop(object):
         
 
     def Tm_d(self,Tfr,Ftd):
-        return (Ftd*self.r*0)+(Tfr)*0.5
+        return (Ftd*self.r*0)+(Tfr)
     
     def Id(self,Tm):
         return Tm/self.Kt
 
 
-    def loop(self):
+    def loop(self,forceController,positionController):
         data=self.motorController.readBulkSensors(self.motorID)*motor.bulkConversion
         self.log.append(data)
         omega=data[2]
-        theta=data[3]
+        theta=data[3]*(3.141516/180)
         i=data[1]/1000
         self.omegaM[0]=omega
         Tfr=self.TfrM[0]
-        controllerPos=PID(,,,setpoint=)
-        controllerPos.sample_time=self.h
-        controllerPos.output_limits = (0, 4.1)
 
-        T_Forward=self.Tm_d(Tfr,self.Tfd)*0
-        #T_FeedBack=self.outputTM[0]
+        posSetPoint=forceController(self.FtM[0])
+        print(posSetPoint)
+
+        self.motorController.setGoalPositionAngle(posSetPoint*(180/3.141516),self.motorID)
+        """
+        positionController.setpoint=posSetPoint
+
+        T_FeedBack=positionController(theta)
+        T_Forward=self.Tm_d(Tfr,self.Tfd)
+
+        total=T_FeedBack+T_Forward*0
+        self.motorController.setGoalCurrent(total*1000,self.motorID)
+        """
+
+        pos=theta*(14/2*3.141516)*5
+        force=self.FtM[0]
+        return theta,force
         
-        total=T_FeedBack+T_Forward
-        pos=theta*(14/360)*5
-       
-        self.motorController.setGoalPositionAngle(total*360/(2*3.1415),self.motorID)
-        #self.motorController.setGoalVelocity(total,self.motorID) 
+        
+
+      
+
     
     def startLoop(self):
+        
         self.motorController.connect([self.motorID])
         self.motorController.homming(self.motorID)
-        #self.motorController.setVelocityControlMode(self.motorID)
-        #self.motorController.setExtendedPositionControlMode(self.motorID)
-        self.motorController.setCurrentControlMode(self.motorID)
+        
+        #self.motorController.setCurrentControlMode(self.motorID)
+        self.motorController.setExtendedPositionControlMode(self.motorID)
         self.motorController.enableTorque(self.motorID)
-        self.controller.start()
+       
         
     def run(self):
+        plt.figure()
+        time.sleep(3)
         self.startLoop()
         time_after_loop = time.perf_counter()
+        beg=time_after_loop
+        t=[]
+        thetas=[]
+        fs=[]
+
+        controllerForce=PID(0.375,1.76,0.0,setpoint=1.5)
+        controllerForce.sample_time=(self.h)
+        controllerForce.output_limits=(0,4.368)
+
+
+        controllerPos=PID(0.168,9.73,0.000728)
+        controllerPos.sample_time=self.h
+        controllerPos.output_limits = (-1, 1)
+
         while True:
             time_before_loop = time.perf_counter()
-            self.loop()
+            theta,force=self.loop(controllerForce,controllerPos)
+            ti=time_before_loop-beg
+            t.append(ti)
+            thetas.append(theta)
+            fs.append(force)
+            plt.plot(t,fs)
+            plt.pause(0.005)
+            if(ti>=7):
+                break
             time_after_loop = time.perf_counter()
             time_to_sleep=self.h-(time_after_loop-time_before_loop)
             if(time_to_sleep>0):
-                time.sleep(time_to_sleep)     
+                time.sleep(time_to_sleep)
+            
+        plt.show()     
 
     
 
@@ -237,7 +254,7 @@ if __name__ == '__main__':
     outputTM=Manager().list([0])
 
 
-    sensorCFG=('COM5',38400)
+    sensorCFG=('COM6',38400)
     motors=motor("COM3",4000000)
 
     freq=900
