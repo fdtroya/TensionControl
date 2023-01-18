@@ -130,7 +130,7 @@ class ControlLoop(object):
         self.outputTM=outputTM
 
         
-  
+        self.overCurrent=0
 
         loadCellthread=myThreadloadCell(sensorCFG,FtM)
 
@@ -163,12 +163,12 @@ class ControlLoop(object):
         beg=time_after_loop
         log=[]
        
-        controllerForce1=PID(0.375,1.76,0.0,setpoint=self.setpoints[0])
+        controllerForce1=PID(0.02,0.047,0,setpoint=self.setpoints[0])
         controllerForce1.sample_time=(self.h)
         controllerForce1.output_limits=(0,4.368)
 
 
-        controllerForce2=PID(0.375,1.76,0.0,setpoint=self.setpoints[1])
+        controllerForce2=PID(0.02,0.047,0,setpoint=self.setpoints[1])
         controllerForce2.sample_time=(self.h)
         controllerForce2.output_limits=(0,4.368)
 
@@ -179,7 +179,7 @@ class ControlLoop(object):
         controllerPos=PID(0.168,9.73,0.000728)
         controllerPos.sample_time=self.h
         controllerPos.output_limits = (-1, 1)
-
+        #self.motorController.disableTorque(self.motorIDs[0])
         while True:
             time_before_loop = time.perf_counter()
             data=self.loop(forceControllers,controllerPos)
@@ -206,12 +206,15 @@ class ControlLoop(object):
         data1=self.motorController.readBulkSensors(self.motorIDs[0])*motor.bulkConversion
         data2=self.motorController.readBulkSensors(self.motorIDs[1])*motor.bulkConversion
         
+        i1=data1[1]
         theta1=data1[3]
         omega1=data1[2]
         self.omegaM[0]=omega1
         Tfr1=self.TfrM[0]
         force1=self.FtM[0]
 
+
+        i2=data2[1]
         theta2=data2[3]
         omega2=data2[2]
         self.omegaM[1]=omega2
@@ -224,8 +227,20 @@ class ControlLoop(object):
         
 
         self.motorController.setGoalPositionAngle(posSetPoint1*(180/3.141516),self.motorIDs[0])
-        
         self.motorController.setGoalPositionAngle(-posSetPoint2*(180/3.141516),self.motorIDs[1])
+
+        if(abs(i1)>400 or abs(i2)>400):
+            self.overCurrent=self.overCurrent+1
+            if(self.overCurrent>=20):
+                self.motorController.disableTorque(self.motorIDs[0])
+                self.motorController.disableTorque(self.motorIDs[1])
+                print(i1)
+                print(i2)
+                print("Too much Current")
+                exit()
+        else:
+            self.overCurrent=0
+
        
         """
         positionController.setpoint=posSetPoint
@@ -275,7 +290,7 @@ if __name__ == '__main__':
     motorController=motor("COM3",4000000)
 
     ids=[1,2]
-    setpoints=[1.5,1.5]
+    setpoints=[5,1.5]
     freq=900
 
 
