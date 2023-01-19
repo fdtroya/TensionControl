@@ -290,7 +290,7 @@ if __name__ == '__main__':
     motorController=motor("COM3",4000000)
 
     ids=[1,2]
-    setpoints=[5,1.5]
+    setpoints=[1.5,5]
     freq=900
 
 
