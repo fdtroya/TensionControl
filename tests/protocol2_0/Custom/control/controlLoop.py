@@ -151,8 +151,8 @@ class ControlLoop(object):
         for id in self.motorIDs:
             d=d*-1
             self.motorController.homming(id,direction=d)
-            #self.motorController.setCurrentControlMode(self.motorID)
-            self.motorController.setExtendedPositionControlMode(id)
+            self.motorController.setCurrenBasedPositionControlMode(id)
+            self.motorController.setCurrentLimit(700,id)
             self.motorController.enableTorque(id)
     
        
@@ -229,30 +229,10 @@ class ControlLoop(object):
         self.motorController.setGoalPositionAngle(posSetPoint1*(180/3.141516),self.motorIDs[0])
         self.motorController.setGoalPositionAngle(-posSetPoint2*(180/3.141516),self.motorIDs[1])
 
-        if(abs(i1)>400 or abs(i2)>400):
-            self.overCurrent=self.overCurrent+1
-            if(self.overCurrent>=20):
-                self.motorController.disableTorque(self.motorIDs[0])
-                self.motorController.disableTorque(self.motorIDs[1])
-                print(i1)
-                print(i2)
-                print("Too much Current")
-                exit()
-        else:
-            self.overCurrent=0
+
 
        
-        """
-        positionController.setpoint=posSetPoint
 
-        T_FeedBack=positionController(theta)
-        T_Forward=Tfr
-
-        total=T_FeedBack+T_Forward*0
-        self.motorController.setGoalCurrent(total*1000,self.motorID)
-        """
-
-        #pos=theta*(14/2*3.141516)*5
         
         
         return [0,[theta1,force1],[theta2,force2]]
@@ -290,7 +270,7 @@ if __name__ == '__main__':
     motorController=motor("COM3",4000000)
 
     ids=[1,2]
-    setpoints=[1.5,5]
+    setpoints=[3.5,4]
     freq=900
 
 

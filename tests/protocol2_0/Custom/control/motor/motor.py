@@ -232,6 +232,8 @@ class motor(object):
         self.setControlMode(CMD_VELOCITY_CONTROL_MODE,DXL_ID)
     def setPWMControlMode(self,DXL_ID):
         self.setControlMode(CMD_PWM_CONTROL_MODE,DXL_ID)
+    def setCurrenBasedPositionControlMode(self,DXL_ID):
+        self.setControlMode(CMD_CURRENT_BASED_POSITION_CONTROL_MODE,DXL_ID)
     
     #Control Goals
     def setGoalCurrent(self, current,DXL_ID):
@@ -257,6 +259,11 @@ class motor(object):
         pos=self.readAddress(ADDR_PRO_PRESENT_POSITION,LEN_PRO_GOAL_POSITION,DXL_ID)
         currentoffset=self.readAddress(ADDR_PRO_HOMING_OFFSET,LEN_PRO_HOMING_OFFSET,DXL_ID)
         self.setHomeOffset(currentoffset-pos,DXL_ID)
+
+    def setCurrentLimit(self,limit,id):
+        number=motor.mAmpsToNumber(limit)
+        self.writeAddress(ADDR_PRO_CURRENT_LIMIT,number,LEN_PRO_GOAL_CURRENT,id)
+
         
 
     #Read Values
