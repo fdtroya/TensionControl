@@ -202,5 +202,5 @@ def stableTest(id,com,MaxOmega,NDataPoints,plot=False,save=True):
     
 
 if __name__ == '__main__':  
-    #dynamicTest(1,'COM3')
+    dynamicTest(1,'COM3')
     stableTest(1,'COM3',2.5,25,True,True)

@@ -4,26 +4,27 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import uniform_filter1d
 
 
-a=np.load("dataConv.npy")
-a[:,2]=a[:,2]
-b=np.load("dataFrConv.npy")
-b[:,2]=b[:,2]
 
-legend=["voltage","current","velocity","position"]
+def plot(file,title,xAxisName,yAxisName):
+        array=np.load(file)
+        plt.title(title)
+        plt.xlabel(xAxisName)
+        plt.ylabel(yAxisName)
+        plt.plot(array[:,0]*(5*14/360),array[:,1],label='Rigidez')
+        plt.legend()
+        plt.show()
 
-array=a
-xAxis=array[:,-1]
-for colum in [2]:#t[1]):
-    yAxis=array[:,colum]
-    y_smooth = uniform_filter1d(yAxis,size=20)
-    lowess = sm.nonparametric.lowess(yAxis, xAxis, frac=0.3)
-    mask=lowess[:,1]>=0
-    lowess[:,1]=lowess[:,1]*mask
-    plt.plot(lowess[:, 0], lowess[:, 1],label=legend[colum],linewidth=0.5)
-    #plt.plot(xAxis,y_smooth,label=legend[colum],linewidth=0.5)
-    plt.plot(xAxis,yAxis,label=legend[colum],linewidth=0.5)
-    plt.legend(loc='best')
-    
-#np.save("dataFiltered.npy",lowess)
-plt.show()
+def plotResponse():
+    array=np.load("experimentalResponse.npy")
+    plt.title("Respuesta a escalon")
+    plt.xlabel("Tiempos [s]")
+    plt.ylabel("Fuerza [N]")
+    plt.plot(array[:,0],np.ones(np.size(array[:,0]))*0.98,label='98%')
+    plt.plot(array[:,0],np.ones(np.size(array[:,0]))*1.02,label='102%')
+    plt.plot(array[:,0],array[:,2],label="Motor 1")
+    #plt.plot(array[:,0],array[:,4],label="Motor 2")
+    plt.legend()
+    plt.show()
 
+#plot("stiffnessData.npy","Rigidez","Despalazamiento [deg]","Fuerza [N]")
+plotResponse()

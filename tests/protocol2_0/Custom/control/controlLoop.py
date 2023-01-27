@@ -9,6 +9,7 @@ from multiprocessing import Manager
 import matplotlib.pyplot as plt
 from scipy.optimize import root
 from simple_pid import PID
+import numpy as np
 
 def sign(n):
     return int(n>0) - int(n<0)
@@ -109,6 +110,8 @@ class ControlLoop(object):
 
         self.constants1=constants[0]
         self.constants2=constants[1]
+        self.controllers=[]
+        self.gains=gains
 
         
 
@@ -145,6 +148,30 @@ class ControlLoop(object):
     def Id(self,Tm):
         return Tm/self.Kt
     
+    def stifnessData(self):
+        self.motorController.disableTorque(self.motorIDs[0])
+        pos=0
+        datapoints=[]
+        dataForce=0
+        while pos<4.2 and dataForce<=16:
+            self.motorController.setGoalPositionAngle(pos*(180/3.141516),self.motorIDs[1])
+            time.sleep(0.05)
+            dataPos=self.motorController.readBulkSensors(self.motorIDs[1])*motor.bulkConversion
+            dataPos=dataPos[3]
+            dataForce=self.FtM[1]
+            datapoints.append([dataPos,dataForce])
+            pos-=0.01
+        self.motorController.disableTorque(self.motorIDs[1])
+        self.motorController.disableTorque(self.motorIDs[0])
+        datapoints=np.array(datapoints)
+        plt.plot(datapoints[:,0],datapoints[:,1])
+        plt.show()
+        np.save("stiffnessData2.npy",datapoints)
+        exit()
+    
+ 
+
+    
     def startLoop(self):
         self.motorController.connect(self.motorIDs)
         d=1
@@ -152,42 +179,65 @@ class ControlLoop(object):
             d=d*-1
             self.motorController.homming(id,direction=d)
             self.motorController.setCurrenBasedPositionControlMode(id)
-            self.motorController.setCurrentLimit(700,id)
+            self.motorController.setCurrentLimit(300,id)
             self.motorController.enableTorque(id)
+
+        controllerForce1=PID(0,0.1,0,setpoint=0.2)
+        controllerForce1.sample_time=(self.h)
+        controllerForce1.output_limits=(0,4.368)
+
+
+        controllerForce2=PID(0,0.1,0,setpoint=0.2)
+        controllerForce2.sample_time=(self.h)
+        controllerForce2.output_limits=(0,4.368)
+        out=0
+
+        controllerForce1.setpoint=1
+        controllerForce2.setpoint=1
+        while(out<=0.2):
+            force1=self.FtM[0]
+            force2=self.FtM[1]
+            posSetPoint1=controllerForce1(force1)
+            posSetPoint2=controllerForce2(force2)
+            self.motorController.setGoalPositionAngle(posSetPoint1*(180/3.141516),self.motorIDs[0])
+            self.motorController.setGoalPositionAngle(-posSetPoint2*(180/3.141516),self.motorIDs[1])
+            out=max(force1,force2)
+        
+        controllerForce1.Kp=self.gains[0]
+        controllerForce1.Ki=self.gains[1]
+        controllerForce1.Kd=self.gains[2]
+        controllerForce1.setpoint=self.setpoints[0]
+
+        controllerForce2.Kp=self.gains[0]
+        controllerForce2.Ki=self.gains[1]
+        controllerForce2.Kd=self.gains[2]
+        controllerForce2.setpoint=self.setpoints[1]
+
+        forceControllers=[controllerForce1,controllerForce2]
+        self.controllers=forceControllers
+
+
     
-       
+
         
     def run(self):
         self.startLoop()
         time_after_loop = time.perf_counter()
         beg=time_after_loop
         log=[]
-       
-        controllerForce1=PID(0.02,0.047,0,setpoint=self.setpoints[0])
-        controllerForce1.sample_time=(self.h)
-        controllerForce1.output_limits=(0,4.368)
+        s=False
 
-
-        controllerForce2=PID(0.02,0.047,0,setpoint=self.setpoints[1])
-        controllerForce2.sample_time=(self.h)
-        controllerForce2.output_limits=(0,4.368)
-
-
-        forceControllers=[controllerForce1,controllerForce2]
-
-
-        controllerPos=PID(0.168,9.73,0.000728)
-        controllerPos.sample_time=self.h
-        controllerPos.output_limits = (-1, 1)
-        #self.motorController.disableTorque(self.motorIDs[0])
         while True:
             time_before_loop = time.perf_counter()
-            data=self.loop(forceControllers,controllerPos)
+            data=self.loop()
             ti=time_before_loop-beg
             data[0]=ti
             log.append(data)
-            #if(ti>=7):
-            #    break
+            if(ti>=30 and not s):
+                s=True
+                print("Saving")
+                np.save("experimentalResponse.npy",np.array(log))
+                #exit()
             time_after_loop = time.perf_counter()
             time_to_sleep=self.h-(time_after_loop-time_before_loop)
             if(time_to_sleep>0):
@@ -197,10 +247,10 @@ class ControlLoop(object):
     
 
 
-    def loop(self,forceControllers,positionControllers):
+    def loop(self):
         
-        forceC1=forceControllers[0]
-        forceC2=forceControllers[1]
+        forceC1=self.controllers[0]
+        forceC2=self.controllers[1]
 
 
         data1=self.motorController.readBulkSensors(self.motorIDs[0])*motor.bulkConversion
@@ -235,7 +285,7 @@ class ControlLoop(object):
 
         
         
-        return [0,[theta1,force1],[theta2,force2]]
+        return [0,theta1,force1,theta2,force2]
         
         
 
@@ -257,7 +307,7 @@ if __name__ == '__main__':
         constants.append(p)
 
 
-    gains=[0.445,0.445,0]#0.445,0.445,0
+    gains=[0.000296,0.0104,8.1*10**-7]#0.445,0.445,0
 
     omegaM = Manager().list([0,0])
     TfrM = Manager().list([0,0])
@@ -270,7 +320,7 @@ if __name__ == '__main__':
     motorController=motor("COM3",4000000)
 
     ids=[1,2]
-    setpoints=[3.5,4]
+    setpoints=[1,1]
     freq=900
 
 
