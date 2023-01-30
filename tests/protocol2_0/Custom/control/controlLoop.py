@@ -106,7 +106,7 @@ class myThreadFrictionEstimator(object):
 
 class ControlLoop(object):
 
-    def __init__(self,motorController,sensorCFG,frequency,constants,gains,ids,setpoints,omegaM,TfrM,FtM,outputTM,r=(22.28/2)*10**-3,motorId=1,motordirection=1):
+    def __init__(self,motorController,frequency,constants,gains,ids,setpointsM,omegaM,TfrM,FtM,outputTM,r=(22.28/2)*10**-3,motordirection=1):
 
         self.constants1=constants[0]
         self.constants2=constants[1]
@@ -125,29 +125,35 @@ class ControlLoop(object):
         self.freq=frequency
         self.h=1/frequency
         
-        self.setpoints=setpoints
+        
 
         self.omegaM=omegaM
         self.TfrM=TfrM
         self.FtM=FtM
         self.outputTM=outputTM
+        self.setpointsM=setpointsM
+
+        controllerForce1=PID(0,0.1,0,setpoint=0.2)
+        controllerForce1.sample_time=(self.h)
+        controllerForce1.output_limits=(0,4.368)
+
+
+        controllerForce2=PID(0,0.1,0,setpoint=0.2)
+        controllerForce2.sample_time=(self.h)
+        controllerForce2.output_limits=(0,4.368)
+
+        forceControllers=[controllerForce1,controllerForce2]
+        self.controllers=forceControllers
+
 
         
-        self.overCurrent=0
-
-        loadCellthread=myThreadloadCell(sensorCFG,FtM)
 
         frictionEstimator1=myThreadFrictionEstimator(0,frConstants1,omegaM,TfrM,outputTM,FtM,1e-5)
         frictionEstimator2=myThreadFrictionEstimator(1,frConstants2,omegaM,TfrM,outputTM,FtM,1e-5)
 
         frictionEstimator1.start()
         frictionEstimator2.start()
-        loadCellthread.start()
         
-    
-    def Id(self,Tm):
-        return Tm/self.Kt
-    
     def stifnessData(self):
         self.motorController.disableTorque(self.motorIDs[0])
         pos=0
@@ -167,33 +173,28 @@ class ControlLoop(object):
         plt.plot(datapoints[:,0],datapoints[:,1])
         plt.show()
         np.save("stiffnessData2.npy",datapoints)
-        exit()
+        exit()       
     
- 
+    def Id(self,Tm):
+        return Tm/self.Kt
+    
+
+    
+    def updateSetPoints(self):
+        i=0
+        for controller in self.controllers:
+            controller.setpoint=self.setPointsM[i]
+            i+=1
+        
 
     
     def startLoop(self):
-        self.motorController.connect(self.motorIDs)
-        d=1
-        for id in self.motorIDs:
-            d=d*-1
-            self.motorController.homming(id,direction=d)
-            self.motorController.setCurrenBasedPositionControlMode(id)
-            self.motorController.setCurrentLimit(300,id)
-            self.motorController.enableTorque(id)
 
-        controllerForce1=PID(0,0.1,0,setpoint=0.2)
-        controllerForce1.sample_time=(self.h)
-        controllerForce1.output_limits=(0,4.368)
-
-
-        controllerForce2=PID(0,0.1,0,setpoint=0.2)
-        controllerForce2.sample_time=(self.h)
-        controllerForce2.output_limits=(0,4.368)
+        controllerForce1,controllerForce2=self.controllers
         out=0
 
-        controllerForce1.setpoint=1
-        controllerForce2.setpoint=1
+        controllerForce1.setpoint=0.2
+        controllerForce2.setpoint=0.2
         while(out<=0.2):
             force1=self.FtM[0]
             force2=self.FtM[1]
@@ -213,11 +214,6 @@ class ControlLoop(object):
         controllerForce2.Kd=self.gains[2]
         controllerForce2.setpoint=self.setpoints[1]
 
-        forceControllers=[controllerForce1,controllerForce2]
-        self.controllers=forceControllers
-
-
-    
 
         
     def run(self):
@@ -232,12 +228,12 @@ class ControlLoop(object):
             data=self.loop()
             ti=time_before_loop-beg
             data[0]=ti
-            log.append(data)
-            if(ti>=30 and not s):
-                s=True
-                print("Saving")
-                np.save("experimentalResponse.npy",np.array(log))
-                #exit()
+            #log.append(data)
+            #if(ti>=30 and not s):
+            #    s=True
+            #    print("Saving")
+            #    np.save("experimentalResponse.npy",np.array(log))
+            #    #exit()
             time_after_loop = time.perf_counter()
             time_to_sleep=self.h-(time_after_loop-time_before_loop)
             if(time_to_sleep>0):
@@ -260,6 +256,7 @@ class ControlLoop(object):
         theta1=data1[3]
         omega1=data1[2]
         self.omegaM[0]=omega1
+
         Tfr1=self.TfrM[0]
         force1=self.FtM[0]
 
@@ -268,6 +265,7 @@ class ControlLoop(object):
         theta2=data2[3]
         omega2=data2[2]
         self.omegaM[1]=omega2
+
         Tfr2=self.TfrM[1]
         force2=self.FtM[1]
 
@@ -290,7 +288,79 @@ class ControlLoop(object):
         
 
       
+class controlWrapper:
 
+    def __init__(self):
+        constantsJson=json.load(open("models.json"))
+        motors=["motorFr_1","motorFr_2"]
+        parameters="Ra,La,J,Kt,B,sigma0,sigma1,sigma2,Ts,Tc,Vs".split(",")
+        self.constants=[]
+
+
+
+        for m in motors:
+            p=[]
+            for parameter in parameters:
+                p.append(constantsJson[m][parameter])
+            self.constants.append(p)
+
+
+        self.motorPort="COM3"
+        self.sensorPort="COM1"
+
+        self.motorIDs=[1,2]
+        self.motorController=""
+
+        self.gains=[0.000296,0.0104,8.1*10**-7]#PID constants 0.445,0.445,0
+
+        self.omegaM = Manager().list([0,0])
+        self.TfrM = Manager().list([0,0])
+        self.FtM=Manager().list([0,0])
+        self.outputTM=Manager().list([0,0])
+        self.setpointsM=Manager().list([0,0])
+        self.freq=900
+
+
+    
+
+    def connect(self):
+        sensorCFG=(self.sensorPort,38400)
+        self.motorController=motor(self.motorPort,4000000)
+        self.motorController.connect(self.motorIDs)
+        loadCellthread=myThreadloadCell(sensorCFG,self.FtM)
+        loadCellthread.start()
+        d=1
+        for id in self.motorIDs:
+            d=d*-1
+            self.motorController.homming(id,direction=d)
+            self.motorController.setCurrenBasedPositionControlMode(id)
+            self.motorController.setCurrentLimit(300,id)
+            self.motorController.enableTorque(id)
+        
+        self.controlLoop=ControlLoop(self.motorController,self.freq,self.constants,self.gains,self.motorIDs,self.setpointsM,self.omegaM,self.TfrM,self.FtM,self.outputTM)
+        p=Process(target=self.controlLoop.run)
+        p.start()
+        return "Connected"
+
+    def updateSetPoints(self,setpoints):
+        self.setpointsM[0]=setpoints[0]
+        self.setpointsM[1]=setpoints[1]
+        self.controlLoop.updateSetPoints()
+        return "SetPoints Updated"
+        
+        
+
+    def homeMotors(self):
+        if (self.motorController==""):
+            return "No motor Connected"
+        d=1
+        for id in self.motorIDs:
+            d=d*-1
+            self.motorController.homming(id,direction=d)
+            self.motorController.setCurrenBasedPositionControlMode(id)
+            self.motorController.setCurrentLimit(300,id)
+            self.motorController.enableTorque(id)
+        return "Done Homming"
 
 
 
@@ -313,6 +383,7 @@ if __name__ == '__main__':
     TfrM = Manager().list([0,0])
     FtM=Manager().list([0,0])
     outputTM=Manager().list([0,0])
+    setpointsM=Manager().list([1,1])
     
 
 
@@ -320,9 +391,9 @@ if __name__ == '__main__':
     motorController=motor("COM3",4000000)
 
     ids=[1,2]
-    setpoints=[1,1]
+    
     freq=900
 
 
-    l=ControlLoop(motorController,sensorCFG,freq,constants,gains,ids,setpoints,omegaM,TfrM,FtM,outputTM)
+    l=ControlLoop(motorController,sensorCFG,freq,constants,gains,ids,setpointsM,omegaM,TfrM,FtM,outputTM)
     l.run()
