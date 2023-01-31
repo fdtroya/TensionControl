@@ -100,6 +100,7 @@ class Ui_MainWindow(object):
         self.pushButton.clicked.connect(self.homeButtonEvent)
         self.connectButton.clicked.connect(self.connectButtonEvent)
         self.setSetpointButton.clicked.connect(self.setPointButtonEvent)
+        
 
 
         self.retranslateUi(MainWindow)
@@ -123,7 +124,8 @@ class Ui_MainWindow(object):
     def connectButtonEvent(self):
         self.controllerWrapper.motorPort=self.motorPortTB.toPlainText()
         self.controllerWrapper.sensorPort=self.indicatorPortTB.toPlainText()
-        self.controllerWrapper.connect()
+        
+        self.controllerWrapper.connect(self.sensor1,self.sensor2)
     
     def homeButtonEvent(self):
         self.controllerWrapper.homeMotors()

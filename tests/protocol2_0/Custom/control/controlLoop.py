@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import root
 from simple_pid import PID
 import numpy as np
+from threading import Thread
 
 def sign(n):
     return int(n>0) - int(n<0)
@@ -133,12 +134,12 @@ class ControlLoop(object):
         self.outputTM=outputTM
         self.setpointsM=setpointsM
 
-        controllerForce1=PID(0,0.1,0,setpoint=0.2)
+        controllerForce1=PID(0.4,0.8,0,setpoint=0.05)
         controllerForce1.sample_time=(self.h)
         controllerForce1.output_limits=(0,4.368)
 
 
-        controllerForce2=PID(0,0.1,0,setpoint=0.2)
+        controllerForce2=PID(0.4,0.8,0,setpoint=0.05)
         controllerForce2.sample_time=(self.h)
         controllerForce2.output_limits=(0,4.368)
 
@@ -183,7 +184,7 @@ class ControlLoop(object):
     def updateSetPoints(self):
         i=0
         for controller in self.controllers:
-            controller.setpoint=self.setPointsM[i]
+            controller.setpoint=self.setpointsM[i]
             i+=1
         
 
@@ -193,9 +194,9 @@ class ControlLoop(object):
         controllerForce1,controllerForce2=self.controllers
         out=0
 
-        controllerForce1.setpoint=0.2
-        controllerForce2.setpoint=0.2
-        while(out<=0.2):
+        controllerForce1.setpoint=0.1
+        controllerForce2.setpoint=0.1
+        while(out<=0.025):
             force1=self.FtM[0]
             force2=self.FtM[1]
             posSetPoint1=controllerForce1(force1)
@@ -207,16 +208,16 @@ class ControlLoop(object):
         controllerForce1.Kp=self.gains[0]
         controllerForce1.Ki=self.gains[1]
         controllerForce1.Kd=self.gains[2]
-        controllerForce1.setpoint=self.setpoints[0]
+        
 
         controllerForce2.Kp=self.gains[0]
         controllerForce2.Ki=self.gains[1]
         controllerForce2.Kd=self.gains[2]
-        controllerForce2.setpoint=self.setpoints[1]
+        
 
 
         
-    def run(self):
+    def run(self,container1,container2):
         self.startLoop()
         time_after_loop = time.perf_counter()
         beg=time_after_loop
@@ -228,6 +229,9 @@ class ControlLoop(object):
             data=self.loop()
             ti=time_before_loop-beg
             data[0]=ti
+            if(container1!=None and container2!=None):
+                container1.display(data[2])
+                container2.display(data[4])
             #log.append(data)
             #if(ti>=30 and not s):
             #    s=True
@@ -311,7 +315,7 @@ class controlWrapper:
         self.motorIDs=[1,2]
         self.motorController=""
 
-        self.gains=[0.000296,0.0104,8.1*10**-7]#PID constants 0.445,0.445,0
+        self.gains=[0.000296,0.0304,8.1*10**-7]#PID constants 0.445,0.445,0
 
         self.omegaM = Manager().list([0,0])
         self.TfrM = Manager().list([0,0])
@@ -323,7 +327,7 @@ class controlWrapper:
 
     
 
-    def connect(self):
+    def connect(self, container1=None,container2=None):
         sensorCFG=(self.sensorPort,38400)
         self.motorController=motor(self.motorPort,4000000)
         self.motorController.connect(self.motorIDs)
@@ -338,8 +342,10 @@ class controlWrapper:
             self.motorController.enableTorque(id)
         
         self.controlLoop=ControlLoop(self.motorController,self.freq,self.constants,self.gains,self.motorIDs,self.setpointsM,self.omegaM,self.TfrM,self.FtM,self.outputTM)
-        p=Process(target=self.controlLoop.run)
-        p.start()
+        #p=Process(target=self.controlLoop.run)
+        #p.start()
+        t=Thread(target=self.controlLoop.run,args=(container1,container2))
+        t.start()
         return "Connected"
 
     def updateSetPoints(self,setpoints):
