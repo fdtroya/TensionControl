@@ -26,5 +26,5 @@ def plotResponse():
     plt.legend()
     plt.show()
 
-#plot("stiffnessData.npy","Rigidez","Despalazamiento [deg]","Fuerza [N]")
-plotResponse()
+plot("stiffnessData.npy","Rigidez","Despalazamiento [mm]","Fuerza [N]")
+#plotResponse()
